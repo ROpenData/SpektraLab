@@ -4,6 +4,19 @@
 
 [SpektraLab](https://github.com/JamesQiu2005/SpektraLab) 的 Windows 分叉——一个胶片模拟暗房。打开一张 RAW，选好胶片和相纸，得到一张按物理过程建模的照片：光线穿过胶片与相纸各自的染料层，颗粒、光晕、DIR 成色剂、放大机滤色一样不少，由 Vulkan 在你的 NVIDIA / AMD 显卡上渲染。
 
+## ⬇ 下载
+
+**[下载 Spektra XD · Windows x64（最新版）](https://github.com/ROpenData/SpektraXD/releases/latest/download/SpektraXD-2.3.2-xd-win64.zip)**
+· [全部版本列表](https://github.com/ROpenData/SpektraXD/releases)
+
+无需安装，三步即用：
+
+1. 下载 zip，解压到任意文件夹。
+2. 打开文件夹，双击 **`SpektraLabQt.exe`**——它就在顶层，旁边就是它需要的 DLL、`resources` 和 `licenses`，请保持它们在一起。
+3. 把一张 RAW 拖进窗口，开始修图。
+
+需要 Windows 10 及以上，以及一块支持 Vulkan 的 NVIDIA / AMD 显卡驱动。
+
 ## Spektra XD 在上游基础上增加的功能
 
 为整批照片的工作流而做的批量与对比工具：

@@ -7,6 +7,20 @@ darkroom. Open a RAW, pick a film and a paper, and get a physically modelled pri
 through the film's dye layers and the paper's, with grain, halation, DIR couplers and the enlarger's
 filter pack, rendered on Vulkan with your NVIDIA or AMD GPU.
 
+## ⬇ Download
+
+**[Download Spektra XD for Windows x64 (latest)](https://github.com/ROpenData/SpektraXD/releases/latest/download/SpektraXD-2.3.2-xd-win64.zip)**
+· [All releases](https://github.com/ROpenData/SpektraXD/releases)
+
+No installer. Three steps:
+
+1. Download the zip and unzip it to any folder.
+2. Open the folder and double-click **`SpektraLabQt.exe`** — it sits at the top level, right next
+   to the DLLs, `resources` and `licenses` it needs. Keep those together.
+3. Import a RAW (drag it onto the window) and start.
+
+Requires Windows 10 or later and a Vulkan-capable NVIDIA/AMD GPU driver.
+
 ## What Spektra XD adds on top of upstream
 
 Batch and comparison tools built for working through a whole shoot:
