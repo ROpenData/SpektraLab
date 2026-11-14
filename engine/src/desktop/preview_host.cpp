@@ -5,10 +5,13 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <deque>
 #include <fstream>
 #include <limits>
+#include <optional>
 #include <set>
 #include <stdexcept>
+#include <string_view>
 #include <utility>
 
 namespace spk::desktop {
@@ -209,15 +212,36 @@ struct PreviewHost::Impl {
     Catalog catalog;
     double engine_create_ms = 0.0;
     EnginePtr engine{nullptr, &spk_engine_destroy};
-    // Declaration order makes session release precede engine destruction.
+    // Declaration order makes session release precede engine destruction:
+    // cached sessions first, then the active one, then the engine.
     SessionPtr session{nullptr, &spk_session_release};
     // Retained only for reopening after a failed settings/render operation.
     // Ordinary parameter edits reuse the current GPU source and negative.
-    io::DecodedRaw decoded;
+    // Shared with any cache entry for this photo, so eviction of the entry
+    // never invalidates the active rebuild path.
+    std::shared_ptr<const io::DecodedRaw> decoded;
     FramePtr frame;
+    // Parameters currently applied to the session. Tracked separately from
+    // frame->settings because live-tier variants (render_variant) change the
+    // session without replacing the main frame; deltas must be computed
+    // against what the session really holds, never against the shown frame.
+    RenderSettings session_settings;
+    // Recently used sessions of other photos, most recent first. A hit pays
+    // only a parameter delta and a reprint; eviction releases the GPU memory.
+    struct CachedSession {
+        fs::path source;
+        DecodeMode mode = DecodeMode::compatible16;
+        SessionPtr session{nullptr, &spk_session_release};
+        RenderSettings session_settings;
+        std::shared_ptr<const io::DecodedRaw> decoded;
+    };
+    std::deque<CachedSession> session_cache;
+    std::size_t session_cache_capacity = 0;
 };
 
-PreviewHost::PreviewHost(const fs::path& resources) : impl_(std::make_unique<Impl>()) {
+PreviewHost::PreviewHost(const fs::path& resources, std::size_t session_cache)
+    : impl_(std::make_unique<Impl>()) {
+    impl_->session_cache_capacity = session_cache;
     impl_->resources = fs::absolute(resources);
     const auto path = utf8(impl_->resources);
     require(std::all_of(path.begin(), path.end(), [](unsigned char c) { return c < 128; }),
@@ -235,10 +259,14 @@ const Catalog& PreviewHost::catalog() const noexcept { return impl_->catalog; }
 double PreviewHost::engine_create_ms() const noexcept { return impl_->engine_create_ms; }
 FramePtr PreviewHost::current() const noexcept { return impl_->frame; }
 
-FramePtr PreviewHost::open_raw(const fs::path& source, DecodeMode mode, const RenderSettings& settings) {
+FramePtr PreviewHost::open_raw(const fs::path& source, DecodeMode mode, const RenderSettings& settings,
+                               const char* tier) {
     const auto started = Clock::now();
     const bool scan_film = validate_settings(settings, impl_->catalog);
     require(mode == DecodeMode::compatible16 || mode == DecodeMode::headroom, "Unknown RAW decode mode");
+    require(tier && (std::string_view(tier) == "live" || std::string_view(tier) == "preview" ||
+                     std::string_view(tier) == "full"),
+            "Unknown render tier: " + std::string(tier ? tier : "(null)"));
     const auto path = fs::absolute(source);
     require(fs::is_regular_file(path), "RAW input is missing: " + utf8(path));
     auto next = std::shared_ptr<Frame>(new Frame());
@@ -246,31 +274,77 @@ FramePtr PreviewHost::open_raw(const fs::path& source, DecodeMode mode, const Re
     next->decode_mode = mode;
     next->settings = settings;
     next->scan_film = scan_film;
-    io::DecodedRaw decoded;
-    std::string error;
-    auto t = Clock::now();
-    const bool decoded_ok = mode == DecodeMode::headroom
-        ? io::decode_raw_headroom(path, decoded, error)
-        : io::decode_raw_compatible(path, decoded, error);
-    require(decoded_ok, "RAW decode: " + error);
-    next->timings.decode_ms = elapsed(t);
-    next->metadata = decoded.metadata;
-    next->decode_timings = decoded.timings;
-    t = Clock::now();
-    auto session = open_session(impl_->engine.get(), decoded, settings, scan_film);
-    next->timings.open_ms = elapsed(t);
-    t = Clock::now();
-    const auto status = spk_render(session.get(), "full", &next->result_);
-    require(status == SPK_OK, "Render: " + std::string(spk_last_error(impl_->engine.get())));
-    next->timings.render_ms = elapsed(t);
-    next->timings.engine_render_ms = next->result_.elapsed_ms;
-    t = Clock::now();
-    next->bgra8 = rgba16_to_bgra8(next->result_);
-    next->timings.display_ms = elapsed(t);
-    // Commit only after all allocations and GPU/CPU work succeeded.
+    // Cache hit: reuse another photo's retained session (decode and upload
+    // already paid); a partial apply failure below drops the entry, matching
+    // the C API rule of never reusing a half-configured session.
+    std::shared_ptr<const io::DecodedRaw> decoded;
+    SessionPtr session{nullptr, &spk_session_release};
+    std::optional<RenderSettings> cached_settings;
+    for (auto entry = impl_->session_cache.begin(); entry != impl_->session_cache.end(); ++entry) {
+        if (entry->source == path && entry->mode == mode) {
+            decoded = entry->decoded;
+            cached_settings = entry->session_settings;
+            session = std::move(entry->session);
+            impl_->session_cache.erase(entry);
+            break;
+        }
+    }
+    try {
+        if (session) {
+            auto t = Clock::now();
+            const auto delta = changed_params(*cached_settings, settings, scan_film);
+            if (!delta.fields().empty()) {
+                const auto text = delta.dump();
+                const auto status = spk_set_params(session.get(), text.c_str(), nullptr);
+                require(status == SPK_OK, "Apply settings: " + std::string(spk_last_error(impl_->engine.get())));
+            }
+            next->timings.params_ms = elapsed(t);
+            next->metadata = decoded->metadata;
+            next->decode_timings = decoded->timings;
+        } else {
+            io::DecodedRaw fresh;
+            std::string error;
+            auto t = Clock::now();
+            const bool decoded_ok = mode == DecodeMode::headroom
+                ? io::decode_raw_headroom(path, fresh, error)
+                : io::decode_raw_compatible(path, fresh, error);
+            require(decoded_ok, "RAW decode: " + error);
+            next->timings.decode_ms = elapsed(t);
+            next->metadata = fresh.metadata;
+            next->decode_timings = fresh.timings;
+            decoded = std::make_shared<io::DecodedRaw>(std::move(fresh));
+            t = Clock::now();
+            session = open_session(impl_->engine.get(), *decoded, settings, scan_film);
+            next->timings.open_ms = elapsed(t);
+        }
+        auto t = Clock::now();
+        const auto status = spk_render(session.get(), tier, &next->result_);
+        require(status == SPK_OK, "Render: " + std::string(spk_last_error(impl_->engine.get())));
+        next->timings.render_ms = elapsed(t);
+        next->timings.engine_render_ms = next->result_.elapsed_ms;
+        t = Clock::now();
+        next->bgra8 = rgba16_to_bgra8(next->result_);
+        next->timings.display_ms = elapsed(t);
+    } catch (...) {
+        // Transactional: the previously active session and frame stay intact;
+        // the popped cache entry (if any) is discarded with its session.
+        throw;
+    }
+    // Commit only after all allocations and GPU/CPU work succeeded. The
+    // outgoing session is retained for a fast switch back, unless this open
+    // replaced the same photo and mode in place.
+    if (impl_->session && impl_->frame && impl_->session_cache_capacity > 0 &&
+        !(impl_->frame->source == path && impl_->frame->decode_mode == mode)) {
+        impl_->session_cache.push_front({impl_->frame->source, impl_->frame->decode_mode,
+                                         std::move(impl_->session), impl_->session_settings,
+                                         impl_->decoded});
+        while (impl_->session_cache.size() > impl_->session_cache_capacity)
+            impl_->session_cache.pop_back();
+    }
     impl_->session = std::move(session);
     impl_->decoded = std::move(decoded);
     impl_->frame = next;
+    impl_->session_settings = settings;
     next->timings.total_ms = elapsed(started);
     return next;
 }
@@ -286,14 +360,15 @@ FramePtr PreviewHost::render(const RenderSettings& settings) {
     next->scan_film = scan_film;
     next->metadata = impl_->frame->metadata;
     next->decode_timings = impl_->frame->decode_timings;
-    const auto delta = changed_params(impl_->frame->settings, settings, scan_film);
+    const auto delta = changed_params(impl_->session_settings, settings, scan_film);
     try {
         auto t = Clock::now();
         if (!impl_->session) {
             // C API settings changes may fail after applying part of their
             // state. Never reuse such a session; rebuild from the retained
             // decoded input on the next request, without decoding the file.
-            impl_->session = open_session(impl_->engine.get(), impl_->decoded, settings, scan_film);
+            require(bool(impl_->decoded), "No retained input; reopen the RAW file");
+            impl_->session = open_session(impl_->engine.get(), *impl_->decoded, settings, scan_film);
             next->timings.open_ms = elapsed(t);
         } else if (!delta.fields().empty()) {
             const auto text = delta.dump();
@@ -314,8 +389,52 @@ FramePtr PreviewHost::render(const RenderSettings& settings) {
         throw;
     }
     impl_->frame = next;
+    impl_->session_settings = settings;
     next->timings.total_ms = elapsed(started);
     return next;
+}
+
+FramePtr PreviewHost::render_variant(const RenderSettings& settings) {
+    const auto started = Clock::now();
+    require(bool(impl_->frame), "Open a RAW image before rendering");
+    const bool scan_film = validate_settings(settings, impl_->catalog);
+    auto variant = std::shared_ptr<Frame>(new Frame());
+    variant->source = impl_->frame->source;
+    variant->decode_mode = impl_->frame->decode_mode;
+    variant->settings = settings;
+    variant->scan_film = scan_film;
+    variant->metadata = impl_->frame->metadata;
+    variant->decode_timings = impl_->frame->decode_timings;
+    const auto delta = changed_params(impl_->session_settings, settings, scan_film);
+    try {
+        auto t = Clock::now();
+        if (!impl_->session) {
+            require(bool(impl_->decoded), "No retained input; reopen the RAW file");
+            impl_->session = open_session(impl_->engine.get(), *impl_->decoded, settings, scan_film);
+            variant->timings.open_ms = elapsed(t);
+        } else if (!delta.fields().empty()) {
+            const auto text = delta.dump();
+            const auto status = spk_set_params(impl_->session.get(), text.c_str(), nullptr);
+            require(status == SPK_OK, "Apply settings: " + std::string(spk_last_error(impl_->engine.get())));
+            variant->timings.params_ms = elapsed(t);
+        }
+        t = Clock::now();
+        const auto status = spk_reprint(impl_->session.get(), "live", &variant->result_);
+        require(status == SPK_OK, "Render: " + std::string(spk_last_error(impl_->engine.get())));
+        variant->timings.render_ms = elapsed(t);
+        variant->timings.engine_render_ms = variant->result_.elapsed_ms;
+        t = Clock::now();
+        variant->bgra8 = rgba16_to_bgra8(variant->result_);
+        variant->timings.display_ms = elapsed(t);
+    } catch (...) {
+        impl_->session.reset();
+        throw;
+    }
+    // The shown full-resolution frame stays untouched; only the session's
+    // applied parameters move so the next render() delta is exact.
+    impl_->session_settings = settings;
+    variant->timings.total_ms = elapsed(started);
+    return variant;
 }
 
 void PreviewHost::export_tiff(const Frame& frame, const fs::path& destination) const {

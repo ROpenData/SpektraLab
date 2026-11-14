@@ -26,8 +26,10 @@ existing record. After a concurrent-write conflict, restart the application and
 reopen the photo to load the other instance's saved settings. Undo/redo is per
 photo, bounded to 64 in-memory steps, and a
 slider drag is one step. Undo history itself is not persisted. Only the current
-photo is fully decoded/developed; unvisited
-photos have an explicit placeholder until opened. Small thumbnails are retained,
+photo is fully decoded/developed at full resolution. Unvisited photos grow
+filmstrip thumbnails automatically in the background: a second PreviewHost on
+its own thread decodes each at the live tier, so no user action is needed and
+the main render worker is never blocked. Small thumbnails are retained,
 not one full RAW/GPU session per imported photo.
 
 Crop is post-render geometry and does not re-run the emulsion. Preview,

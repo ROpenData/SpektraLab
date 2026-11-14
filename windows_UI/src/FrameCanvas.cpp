@@ -1,5 +1,6 @@
 #include "FrameCanvas.hpp"
 #include <QMouseEvent>
+#include <QWheelEvent>
 #include <QQuickWindow>
 #include <QSGSimpleTextureNode>
 #include <algorithm>
@@ -14,12 +15,12 @@ void FrameCanvas::setImage(const QImage& image) {
     const bool changedSize=image.size()!=image_.size();image_=image;++revision_;
     if(changedSize)pan_={};clampPan();update();emit imageChanged();emit viewChanged();
 }
-void FrameCanvas::setFit(bool value) {if(value==fit_)return;fit_=value;pan_={};update();emit viewChanged();}
-void FrameCanvas::resetView(bool value) {fit_=value;pan_={};update();emit viewChanged();}
+void FrameCanvas::setFit(bool value) {if(value==fit_)return;fit_=value;pan_={};if(!fit_)zoom_=1.0;update();emit viewChanged();}
+void FrameCanvas::resetView(bool value) {fit_=value;pan_={};if(!fit_)zoom_=1.0;update();emit viewChanged();}
 double FrameCanvas::dpr() const {return window()?window()->effectiveDevicePixelRatio():1.0;}
 double FrameCanvas::scale() const {
     if(image_.isNull()||width()<=0||height()<=0)return 1;
-    return fit_?std::min(width()*dpr()/image_.width(),height()*dpr()/image_.height()):1.0;
+    return fit_?std::min(width()*dpr()/image_.width(),height()*dpr()/image_.height()):zoom_;
 }
 double FrameCanvas::scalePercent() const {return image_.isNull()?0:scale()*100;}
 QRectF FrameCanvas::imageRect() const {
@@ -70,3 +71,27 @@ void FrameCanvas::mouseMoveEvent(QMouseEvent* e) {if(dragging_){const auto delta
 void FrameCanvas::mouseReleaseEvent(QMouseEvent* e) {dragging_=false;e->accept();}
 void FrameCanvas::mouseUngrabEvent(){dragging_=false;}
 void FrameCanvas::mouseDoubleClickEvent(QMouseEvent* e){resetView(!fit_);e->accept();}
+// Continuous wheel zoom anchored at the cursor. The lower bound is the fit
+// scale (zooming out never shows empty margins), the upper bound 800%.
+// Double-click keeps its exact meaning: fit <-> physical 100 percent.
+void FrameCanvas::wheelEvent(QWheelEvent* e) {
+    if(image_.isNull()||width()<=0||height()<=0){e->ignore();return;}
+    const double fitScale=std::min(width()*dpr()/image_.width(),height()*dpr()/image_.height());
+    const double current=scale();
+    const double notches=std::clamp(std::round(std::abs(e->angleDelta().y())/120.0),1.0,3.0)
+        *(e->angleDelta().y()>0?1.0:-1.0);
+    const double next=std::clamp(current*std::pow(1.25,notches),std::min(fitScale,1.0),8.0);
+    if(std::abs(next-current)<1e-12){e->accept();return;}
+    // Keep the image point under the cursor at the cursor: scale the current
+    // rect about the cursor, then express the origin as a pan offset.
+    const double ratio=next/current;
+    const auto rect=imageRect();
+    const QPointF cursor=e->position();
+    const double x=cursor.x()-(cursor.x()-rect.x())*ratio;
+    const double y=cursor.y()-(cursor.y()-rect.y())*ratio;
+    const double extentX=rect.width()*ratio,extentY=rect.height()*ratio;
+    fit_=false;zoom_=next;
+    pan_={x-(width()-extentX)*0.5,y-(height()-extentY)*0.5};
+    clampPan();update();emit viewChanged();
+    e->accept();
+}

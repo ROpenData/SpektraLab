@@ -115,6 +115,11 @@ int main(int argc,char** argv) {
                   "Multiple-file import did not create two selected items");
             checkCurrent(controller,0,first);
             check(!controller.previewImage().isNull(),"Imported frame has no preview");
+            // Background thumbnails: without visiting the second photo, its
+            // filmstrip thumbnail must appear on its own.
+            waitFor([&]{const auto items=controller.libraryItems();
+                return items.size()==2&&!items[1].toMap().value("thumbnail").value<QImage>().isNull();},
+                "background thumbnail for the unvisited photograph");
 
             // Leave settings in the 180 ms debounce window, then switch. The
             // first item must retain wanted edits, not its older shown frame.
@@ -158,6 +163,8 @@ int main(int argc,char** argv) {
             controller.selectImage(0);idle(controller,"restore first-photo print exposure");
             check(controller.exposureEv()==0.75&&controller.cropRect()==cropA,
                   "First photograph lost desired print exposure or crop");
+            check(controller.metadata().value("decodeMs").toDouble()==0.0,
+                  "Returning to a recently viewed photo decoded the RAW again");
 
             controller.selectAllPhotos(true);
             controller.syncSelectedSettings(); // defaults to excluding crop
@@ -261,6 +268,110 @@ int main(int argc,char** argv) {
             check(cancelledFiles.size()<=1,"Immediate cancellation continued to another photograph");
             for(const auto& file:cancelledFiles)check(!readImage(cancelled+"/"+file).isNull(),"Cancellation left an incomplete file");
             check(controller.settingsEditable(),"Cancellation did not release the editor");
+
+            // Batch film/paper apply moves only that stock to the selected
+            // photographs. Recipients keep their own exposure, adjustments
+            // and crop, own their undo step, unselected photographs are
+            // ignored entirely, and slide-film recipients skip the paper.
+            {
+                const auto films=controller.films();
+                const int previousFilm=controller.filmIndex();
+                int appliedFilm=-1,slideFilm=-1;
+                for(int i=0;i<films.size();++i) {
+                    const bool positive=films[i].toMap().value("positive").toBool();
+                    if(positive&&slideFilm<0)slideFilm=i;
+                    if(!positive&&appliedFilm<0&&i!=previousFilm)appliedFilm=i;
+                }
+                check(appliedFilm>=0&&slideFilm>=0,
+                      "Catalog lacks a distinct negative film or any positive film");
+                controller.selectImage(1);idle(controller,"show beta before batch film apply");
+                const double betaExposure=controller.exposureEv();
+                const QRectF betaCrop=controller.cropRect();
+                const auto betaAdjustments=controller.adjustments();
+                controller.selectImage(0);idle(controller,"return to alpha for batch film apply");
+                controller.setFilmIndex(appliedFilm);
+                idle(controller,"choose the film to batch-apply");
+                controller.selectAllPhotos(false);
+                controller.applyFilmToSelected();
+                controller.selectImage(1);idle(controller,"unselected beta must stay untouched");
+                check(controller.filmIndex()==previousFilm,"Batch apply touched an unselected photograph");
+                check(controller.exposureEv()==betaExposure&&controller.cropRect()==betaCrop,
+                      "Unselected batch apply changed more than the film");
+                controller.selectImage(0);idle(controller,"back to the applying photograph");
+                controller.setItemSelected(1,true);
+                controller.applyFilmToSelected();
+                controller.selectImage(1);idle(controller,"selected beta receives the applied film");
+                check(controller.filmIndex()==appliedFilm,"Batch apply did not change the selected photograph's film");
+                check(controller.exposureEv()==betaExposure&&controller.cropRect()==betaCrop&&
+                      controller.adjustments()==betaAdjustments,
+                      "Batch apply leaked more than the film into the recipient");
+                // Undo must land on the pre-apply state (film back, everything
+                // else already identical), not on an older history entry whose
+                // exposure differs.
+                controller.undo();idle(controller,"undo the batch film on the recipient");
+                check(controller.filmIndex()==previousFilm&&controller.exposureEv()==betaExposure,
+                      "Undo did not restore the recipient's pre-apply state");
+                controller.redo();idle(controller,"redo the batch film on the recipient");
+                check(controller.filmIndex()==appliedFilm&&controller.exposureEv()==betaExposure,
+                      "Redo did not reapply the batch film");
+
+                // Batch paper apply: a slide recipient is skipped untouched;
+                // a negative recipient changes only its print stock.
+                const int previousPaper=controller.paperIndex();
+                const int appliedPaper=(previousPaper+1)%int(controller.papers().size());
+                controller.setFilmIndex(slideFilm);
+                idle(controller,"make the recipient a slide before paper apply");
+                controller.selectImage(0);idle(controller,"back to alpha for slide paper apply");
+                controller.applyPaperToSelected();
+                controller.selectImage(1);idle(controller,"slide recipient must skip the paper");
+                check(controller.paperIndex()==previousPaper,"Paper was applied to a slide recipient");
+                check(controller.filmIndex()==slideFilm&&controller.exposureEv()==betaExposure,
+                      "Slide skip changed more than the paper");
+                controller.setFilmIndex(appliedFilm);
+                idle(controller,"return the recipient to negative film");
+                controller.selectImage(0);idle(controller,"back to alpha for negative paper apply");
+                controller.setPaperIndex(appliedPaper);
+                idle(controller,"choose the paper to batch-apply");
+                controller.applyPaperToSelected();
+                controller.selectImage(1);idle(controller,"negative recipient receives the paper");
+                check(controller.paperIndex()==appliedPaper,"Paper apply did not change the negative recipient");
+                check(controller.filmIndex()==appliedFilm&&controller.exposureEv()==betaExposure&&
+                      controller.cropRect()==betaCrop,"Paper apply leaked other settings");
+                controller.undo();idle(controller,"undo the batch paper on the recipient");
+                check(controller.paperIndex()==previousPaper&&controller.exposureEv()==betaExposure,
+                      "Paper undo did not restore the pre-apply state");
+                controller.redo();idle(controller,"redo the batch paper on the recipient");
+                check(controller.paperIndex()==appliedPaper,"Paper redo did not reapply the stock");
+                controller.selectImage(0);idle(controller,"return to alpha after batch stock tests");
+                check(controller.filmIndex()==appliedFilm&&controller.paperIndex()==appliedPaper,
+                      "Alpha lost its own stocks through the recipient's batch applies");
+
+                // Brightness balancing: match every selected photo's print
+                // brightness to the active reference. Both fixtures are
+                // copies of the same RAW, so a successful match lands the
+                // recipient exactly on the reference's exposure.
+                controller.setExposureEv(-1.0);
+                idle(controller,"set the reference brightness");
+                controller.selectImage(1);idle(controller,"show beta before balancing");
+                const double betaBeforeBalance=controller.exposureEv();
+                check(std::abs(betaBeforeBalance+1.0)>0.2,"Beta must start away from the reference brightness");
+                controller.selectImage(0);idle(controller,"return to the reference photo");
+                controller.balanceBrightness();
+                check(controller.balanceBusy(),"Brightness balancing did not start");
+                idle(controller,"balance brightness across the selection");
+                controller.selectImage(1);idle(controller,"show the balanced recipient");
+                check(std::abs(controller.exposureEv()+1.0)<0.05,
+                      "Brightness balancing did not converge to the reference exposure");
+                check(!controller.libraryItems().value(1).toMap().value("thumbnail").value<QImage>().isNull(),
+                      "Balanced recipient has no refreshed thumbnail");
+                controller.undo();idle(controller,"undo the brightness match");
+                check(std::abs(controller.exposureEv()-betaBeforeBalance)<1e-9,
+                      "Undo did not restore the recipient's exposure");
+                controller.redo();idle(controller,"redo the brightness match");
+                check(std::abs(controller.exposureEv()+1.0)<0.05,"Redo lost the matched exposure");
+                controller.selectImage(0);idle(controller,"return to alpha after balancing");
+                check(std::abs(controller.exposureEv()+1.0)<1e-9,"Reference exposure was disturbed by balancing");
+            }
 
             const auto lastFrame=controller.frame();
             const auto lastPreview=controller.previewImage();

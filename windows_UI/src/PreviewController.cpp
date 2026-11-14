@@ -5,7 +5,9 @@
 #include <QFileInfo>
 #include <QSet>
 #include <QStandardPaths>
+#include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace {
 namespace desktop=spk::desktop;
@@ -36,6 +38,24 @@ output::ExportOptions exportOptions(int format,int quality,int maxEdge) {
         throw std::runtime_error("Invalid export options");
     return {static_cast<output::Format>(format),quality,maxEdge};
 }
+// Median Rec.601 luma of a small downscale. The median tracks the typical
+// pixel, so skies and clipped highlights do not skew the match. The paper
+// curve's nonlinearity is handled by the caller's iterative refinement.
+double medianLuma(const QImage& image) {
+    if(image.isNull())throw std::runtime_error("Cannot measure an empty image");
+    const auto small=image.scaled(512,512,Qt::KeepAspectRatio,Qt::SmoothTransformation);
+    std::vector<double> luma;
+    luma.reserve(std::size_t(small.width())*std::size_t(small.height()));
+    for(int y=0;y<small.height();++y) {
+        const auto* line=reinterpret_cast<const QRgb*>(small.constScanLine(y));
+        for(int x=0;x<small.width();++x)
+            luma.push_back(0.299*qRed(line[x])+0.587*qGreen(line[x])+0.114*qBlue(line[x]));
+    }
+    if(luma.empty())throw std::runtime_error("Cannot measure an empty image");
+    const auto mid=luma.begin()+std::ptrdiff_t(luma.size()/2);
+    std::nth_element(luma.begin(),mid,luma.end());
+    return *mid;
+}
 }
 QImage PreviewController::imageFromFrame(const desktop::FramePtr& frame) {
     // QImage is implicitly shared; the cleanup holder keeps the independently
@@ -56,18 +76,33 @@ PreviewController::PreviewController(std::filesystem::path resources,QObject* pa
      image_factory_(factory?std::move(factory):ImageFactory(imageFromFrame)) {
     auto_apply_.setSingleShot(true);auto_apply_.setInterval(180);
     connect(&auto_apply_,&QTimer::timeout,this,[this]{if(dirty())apply();});
+    // A throttle, not a debounce: keeps firing while the user keeps dragging,
+    // so live-tier previews (~10-30 ms) stream during the gesture and the
+    // full-resolution render still follows once editing settles.
+    live_timer_.setSingleShot(true);live_timer_.setInterval(50);
+    connect(&live_timer_,&QTimer::timeout,this,[this]{
+        if(frame_&&dirty()&&!dialog_open_&&!busy_&&gesture_key_!="straightenDegrees")applyLive();
+        if(frame_&&dirty()&&!dialog_open_)live_timer_.start();
+    });
     save_timer_.setSingleShot(true);save_timer_.setInterval(350);
     connect(&save_timer_,&QTimer::timeout,this,&PreviewController::flushEdits);
     worker_=std::thread([this,resources=std::move(resources)]{workerLoop(resources);});
+    thumb_worker_=std::thread([this]{thumbLoop();});
 }
 PreviewController::~PreviewController() {
     auto_apply_.stop();
+    live_timer_.stop();
     endEditGesture();flushEdits();
     if(cancel_batch_)cancel_batch_->store(true);
+    if(cancel_gallery_)cancel_gallery_->store(true);
+    if(cancel_balance_)cancel_balance_->store(true);
     ++generation_;
     {std::lock_guard lock(mutex_);stopping_=true;jobs_.clear();}
     wake_.notify_one();
     if(worker_.joinable()) worker_.join();
+    {std::lock_guard lock(thumb_mutex_);thumb_stopping_=true;thumb_jobs_.clear();}
+    thumb_wake_.notify_all();
+    if(thumb_worker_.joinable()) thumb_worker_.join();
 }
 void PreviewController::workerLoop(std::filesystem::path resources) {
     std::unique_ptr<desktop::PreviewHost> host;
@@ -92,8 +127,46 @@ void PreviewController::submit(Job job,QString status,QString operation) {
     {std::lock_guard lock(mutex_);jobs_.push_back(std::move(job));}
     wake_.notify_one();
 }
+void PreviewController::submitQuiet(Job job) {
+    // Live previews ride the same serial worker without touching busy_,
+    // status or the debounce: a queued full render simply runs after them.
+    {std::lock_guard lock(mutex_);jobs_.push_back(std::move(job));}
+    wake_.notify_one();
+}
+void PreviewController::applyLive() {
+    if(!frame_||busy_||dialog_open_)return;
+    const auto s=settings();const auto shown=frame_;
+    const auto gen=generation_;const auto revision=settings_revision_;
+    const auto mode=decode_mode_?desktop::DecodeMode::headroom:desktop::DecodeMode::compatible16;
+    submitQuiet([s,shown,gen,revision,mode](auto& host){
+        Reply r;r.generation=gen;r.settings_revision=revision;r.operation="live-render";
+        try {
+            // Live feedback is best effort: if the worker holds another
+            // photo, skip and let the full render path reconcile.
+            const auto active=host.current();
+            if(active&&active->source==shown->source&&active->decode_mode==mode)
+                r.frame=host.render_variant(s);
+        }catch(const std::exception&){}
+        return r;
+    });
+}
 void PreviewController::accept(Reply reply) {
     if(reply.generation!=generation_)return; // a retired generation never replaces the canvas
+    if(reply.operation=="live-render") {
+        // Interactive live-tier feedback only: touches the displayed image,
+        // never the held full-resolution frame, history or busy state. A
+        // reply at or below the last full publication is stale low resolution.
+        if(reply.frame&&reply.settings_revision>last_full_revision_) {
+            try {
+                auto live=image_factory_(reply.frame);
+                if(!live.isNull()) {
+                    image_=visibleImage(reply.frame,live,geometry_);
+                    emit frameChanged();
+                }
+            }catch(const std::exception&){}
+        }
+        return;
+    }
     const bool superseded=reply.operation=="render"&&reply.settings_revision!=settings_revision_;
     busy_=false;active_operation_.clear();failed_=!superseded&&!reply.error.isEmpty();
     if(superseded) {
@@ -103,7 +176,10 @@ void PreviewController::accept(Reply reply) {
         status_=dirty()?QStringLiteral("正在更新预览…"):QStringLiteral("预览已是当前选择");
     } else if(failed_) {
         status_=reply.error;
-        if(frame_&&reply.operation!="export"&&reply.operation!="batch-export")restoreSettings();
+        // The gallery never changes the shown settings; a failure there must
+        // not roll the controls back to the last rendered frame either.
+        if(frame_&&reply.operation!="export"&&reply.operation!="batch-export"
+            &&reply.operation!="effects-gallery"&&reply.operation!="balance-brightness")restoreSettings();
     } else if(reply.operation=="init") {
         ready_=true;catalog_=std::move(reply.catalog);films_=list(catalog_.films);papers_=list(catalog_.papers);
         restoreSettings();emit catalogChanged();status_=QStringLiteral("就绪 · 打开 RAW 开始");
@@ -122,6 +198,15 @@ void PreviewController::accept(Reply reply) {
         if(!failed_) {
             restoreSettings();
             updateThumbnail();
+            // Any still-in-flight live preview is now coarser than what is on
+            // screen; record the publication so late replies get dropped.
+            last_full_revision_=settings_revision_;
+            // A different photo makes the retained gallery cells stale; drop
+            // them (~140 MB of live-tier images) instead of carrying them.
+            if(reply.operation=="open"&&!gallery_films_.isEmpty()) {
+                gallery_films_.clear();gallery_progress_=gallery_total_=0;
+                emit galleryChanged();
+            }
             status_=QStringLiteral("渲染完成 %1 秒%2")
                 .arg(frame_->timings.render_ms/1000,0,'f',2)
                 .arg(frame_->reprint()?QStringLiteral(" · 已复用胶片"):QString());
@@ -129,21 +214,31 @@ void PreviewController::accept(Reply reply) {
         }
     } else if(reply.operation=="export") status_=QStringLiteral("已导出当前画面");
     else if(reply.operation=="batch-export")status_=reply.message;
+    else if(reply.operation=="effects-gallery"||reply.operation=="balance-brightness")status_=reply.message;
     if(failed_&&reply.operation=="open"&&reply.library_index>=0&&reply.library_index<int(library_.size()))
         library_[reply.library_index].error=status_;
-    if(failed_&&reply.operation!="export"&&reply.operation!="batch-export"&&active_index_>=0){
+    if(failed_&&reply.operation!="export"&&reply.operation!="batch-export"
+        &&reply.operation!="effects-gallery"&&reply.operation!="balance-brightness"&&active_index_>=0){
         auto& history=library_[active_index_].undo;
         while(!history.empty()&&sameState(history.back(),currentState()))history.pop_back();
     }
     if(reply.operation=="batch-export")cancel_batch_.reset();
+    if(reply.operation=="effects-gallery")cancel_gallery_.reset();
+    if(reply.operation=="balance-brightness")cancel_balance_.reset();
     emit libraryChanged();
     emit historyChanged();
     emit stateChanged();
     if(reply.operation=="init")emit initialized(!failed_);
     else emit operationFinished(reply.operation,!failed_);
     // Export holds an immutable displayed frame. An edit made just before it
-    // began still needs applying, including after an overwrite refusal.
-    if((superseded||reply.operation=="export"||reply.operation=="batch-export")&&!busy_)schedulePreview();
+    // began still needs applying, including after an overwrite refusal. The
+    // balance pass renders the reference on the worker without publishing it,
+    // so a pending edit there needs the same follow-up.
+    if((superseded||reply.operation=="export"||reply.operation=="batch-export"
+        ||reply.operation=="balance-brightness")&&!busy_)schedulePreview();
+    // Any successful operation may have cleared thumbnails (sync, batch
+    // applies) or imported photos the user never visited: fill them in.
+    if(!failed_&&!thumb_stopping_)scheduleThumbnails();
 }
 desktop::RenderSettings PreviewController::settings() const {
     desktop::RenderSettings s=extra_settings_;
@@ -194,6 +289,7 @@ void PreviewController::changed(const QString& editKey){
     if(gesture_index_>=0&&gesture_key_!=editKey)endEditGesture();
     saveActiveSettings(true);
     ++settings_revision_;auto_apply_.stop();schedulePreview();
+    if(!live_timer_.isActive())live_timer_.start();
     if(frame_)status_=QStringLiteral("正在更新预览…");
     failed_=false;emit settingsChanged();emit stateChanged();
 }
@@ -353,7 +449,53 @@ void PreviewController::syncSelectedSettings(bool includeCrop) {
     }
     status_=QStringLiteral("已将当前参数同步至 %1 张照片%2").arg(count)
         .arg(includeCrop?QStringLiteral("（含裁切）"):QStringLiteral("（各自保留裁切）"));
-    scheduleSave();emit libraryChanged();emit historyChanged();emit stateChanged();
+    scheduleSave();emit libraryChanged();emit historyChanged();emit stateChanged();scheduleThumbnails();
+}
+void PreviewController::applyFilmToSelected() {
+    if(!frame_||busy_||dialog_open_)return;
+    if(film_index_<0||std::size_t(film_index_)>=catalog_.films.size())return;
+    saveActiveSettings();
+    const auto& film=catalog_.films[std::size_t(film_index_)];
+    int count=0;
+    for(int i=0;i<int(library_.size());++i)if(i!=active_index_&&library_[i].selected){
+        auto& item=library_[i];
+        if(item.settings.film_stock==film.id)continue;
+        // Recipients keep their own exposure, paper, adjustments, decode mode
+        // and crop; only the emulsion changes. Undo stays per photo, as sync.
+        item.undo.push_back(itemState(item));if(item.undo.size()>64)item.undo.erase(item.undo.begin());item.redo.clear();
+        item.settings.film_stock=film.id;item.pending_save=true;
+        item.thumbnail={};item.error.clear();++count;
+    }
+    status_=QStringLiteral("已将胶片「%1」应用于 %2 张选中照片（其余参数各自保留）")
+        .arg(text(film.label)).arg(count);
+    scheduleSave();emit libraryChanged();emit historyChanged();emit stateChanged();scheduleThumbnails();
+}
+void PreviewController::applyPaperToSelected() {
+    if(!frame_||busy_||dialog_open_)return;
+    if(paper_index_<0||std::size_t(paper_index_)>=catalog_.papers.size())return;
+    saveActiveSettings();
+    const auto& paper=catalog_.papers[std::size_t(paper_index_)];
+    const auto film_is_positive=[this](const std::string& id) {
+        for(const auto& stock:catalog_.films)if(stock.id==id)return stock.is_positive;
+        return false;
+    };
+    int count=0,slides=0;
+    for(int i=0;i<int(library_.size());++i)if(i!=active_index_&&library_[i].selected){
+        auto& item=library_[i];
+        // A slide is scanned directly and bypasses the paper stage; it keeps
+        // its remembered paper for a later switch back to negative film.
+        if(film_is_positive(item.settings.film_stock)){++slides;continue;}
+        if(item.settings.print_stock==paper.id)continue;
+        item.undo.push_back(itemState(item));if(item.undo.size()>64)item.undo.erase(item.undo.begin());item.redo.clear();
+        item.settings.print_stock=paper.id;item.pending_save=true;
+        item.thumbnail={};item.error.clear();++count;
+    }
+    status_=slides>0
+        ?QStringLiteral("已将相纸「%1」应用于 %2 张选中照片（正片 %3 张跳过，其余参数各自保留）")
+              .arg(text(paper.label)).arg(count).arg(slides)
+        :QStringLiteral("已将相纸「%1」应用于 %2 张选中照片（其余参数各自保留）")
+              .arg(text(paper.label)).arg(count);
+    scheduleSave();emit libraryChanged();emit historyChanged();emit stateChanged();scheduleThumbnails();
 }
 void PreviewController::setCropRect(const QRectF& crop) {
     auto next=geometry_;next.crop=crop;setGeometry(next,"cropRect");
@@ -514,4 +656,222 @@ void PreviewController::exportBatch(const QUrl& folder,int format,int quality,in
         }catch(const std::exception& e){r.error=text(e.what());}
         return r;
     },QStringLiteral("正在批量导出…"),"batch-export");
+}
+
+void PreviewController::openEffectsGallery() {
+    if(!frame_||busy_||dialog_open_)return;
+    if(film_index_<0||std::size_t(film_index_)>=catalog_.films.size())return;
+    saveActiveSettings();
+    const auto shown=frame_;const auto base=settings();
+    const auto mode=decode_mode_?desktop::DecodeMode::headroom:desktop::DecodeMode::compatible16;
+    const int baseIndex=film_index_;
+    // Placeholder cells keep the grid in catalog order while live-tier
+    // renders stream in; each delivery fills one cell and bumps the progress.
+    gallery_films_.clear();
+    for(std::size_t i=0;i<catalog_.films.size();++i) {
+        const auto& film=catalog_.films[i];
+        gallery_films_.push_back(QVariantMap{{"id",text(film.id)},{"name",text(film.label)},
+            {"positive",film.is_positive},{"catalogIndex",int(i)},{"ready",false},{"image",QImage()}});
+    }
+    gallery_progress_=0;gallery_total_=int(catalog_.films.size());
+    emit galleryChanged();emit stateChanged();
+    // The current film renders last so the session ends back on the base
+    // parameters without paying one extra negative invalidation.
+    std::vector<std::pair<int,std::string>> order;
+    for(std::size_t i=0;i<catalog_.films.size();++i)
+        if(int(i)!=baseIndex)order.emplace_back(int(i),catalog_.films[i].id);
+    order.emplace_back(baseIndex,catalog_.films[std::size_t(baseIndex)].id);
+    const auto gen=generation_;
+    cancel_gallery_=std::make_shared<std::atomic_bool>(false);
+    const auto cancel=cancel_gallery_;
+    submit([this,shown,base,mode,order,gen,cancel](auto& host){
+        Reply r;r.generation=gen;r.operation="effects-gallery";
+        int done=0;
+        try {
+            // Same reconciliation as apply(): variants need the session to
+            // hold the photo the user is looking at.
+            const auto active=host.current();
+            if(!active||active->source!=shown->source||active->decode_mode!=mode)
+                host.open_raw(shown->source,mode,base);
+            for(const auto& [index,id]:order) {
+                if(cancel->load())break;
+                auto cellSettings=base;cellSettings.film_stock=id;
+                const auto variant=host.render_variant(cellSettings);
+                // Keep the full live-tier look so the big comparison view can
+                // show real detail; copy() detaches from the engine frame and
+                // releases the retained RGBA16 result immediately (~7 MB/film).
+                const auto image=imageFromFrame(variant).copy();
+                QMetaObject::invokeMethod(this,[this,gen,index,image]{
+                    if(generation_!=gen)return;
+                    auto cell=gallery_films_.value(index).toMap();
+                    cell.insert("image",image);cell.insert("ready",true);
+                    gallery_films_[index]=cell;++gallery_progress_;
+                    emit galleryChanged();emit stateChanged();
+                },Qt::QueuedConnection);
+                ++done;
+            }
+            r.message=(cancel->load()?QStringLiteral("效果总览已取消（已生成 %1/%2）")
+                                     :QStringLiteral("效果总览已生成（%1/%2）"))
+                          .arg(done).arg(order.size());
+        }catch(const std::exception& e){r.error=text(e.what());}
+        return r;
+    },QStringLiteral("正在生成效果总览…"),"effects-gallery");
+}
+void PreviewController::cancelEffectsGallery(){if(cancel_gallery_)cancel_gallery_->store(true);}
+
+void PreviewController::balanceBrightness() {
+    if(!frame_||busy_||dialog_open_)return;
+    saveActiveSettings();
+    // Recipients are selected photos other than the active reference; slides
+    // bypass the paper stage, so print exposure cannot move their brightness.
+    struct Target { int index; QUrl url; desktop::RenderSettings settings; desktop::DecodeMode mode; };
+    std::vector<Target> targets;
+    int slides=0;
+    for(int i=0;i<int(library_.size());++i)if(i!=active_index_&&library_[i].selected){
+        const auto& item=library_[i];
+        bool slide=false;
+        for(const auto& stock:catalog_.films)if(stock.id==item.settings.film_stock)slide=stock.is_positive;
+        if(slide){++slides;continue;}
+        targets.push_back({i,item.url,item.settings,item.mode});
+    }
+    if(targets.empty()&&slides==0)return;
+    const auto shown=frame_;const auto base=settings();
+    const auto shownMode=decode_mode_?desktop::DecodeMode::headroom:desktop::DecodeMode::compatible16;
+    const QString referenceName=fileName();
+    balance_progress_=0;balance_total_=int(targets.size());
+    cancel_balance_=std::make_shared<std::atomic_bool>(false);
+    const auto cancel=cancel_balance_;
+    const auto gen=generation_;
+    submit([this,shown,base,shownMode,targets=std::move(targets),slides,referenceName,gen,cancel](auto& host){
+        Reply r;r.generation=gen;r.operation="balance-brightness";
+        int done=0,limited=0;QStringList failed;
+        try {
+            // The reference is the active photo rendered at its desired
+            // settings — exactly what the user is looking at and likes.
+            const auto active=host.current();
+            const auto reference=(active&&active->source==shown->source&&active->decode_mode==shownMode)
+                ?host.render(base):host.open_raw(shown->source,shownMode,base);
+            const double referenceLuma=medianLuma(imageFromFrame(reference));
+            for(const auto& target:targets) {
+                if(cancel->load())break;
+                const auto source=path(target.url);
+                try {
+                    auto settings=target.settings;
+                    // Only the brightness is measured here; the live tier
+                    // skips the full-resolution render of every recipient.
+                    const auto frame=host.open_raw(source,target.mode,settings,"live");
+                    double luma=medianLuma(imageFromFrame(frame));
+                    // Print-only reprints reuse the cached negative, so each
+                    // live-tier iteration costs little; the loop absorbs the
+                    // paper curve's nonlinearity.
+                    double delta=0;
+                    for(int iteration=0;iteration<3;++iteration) {
+                        delta=std::log2(std::max(1e-9,referenceLuma)/std::max(1e-9,luma));
+                        if(std::abs(delta)<0.05)break;
+                        auto next=settings;
+                        next.print_exposure=std::exp2(-std::clamp(-std::log2(settings.print_exposure)+delta,-2.0,2.0));
+                        if(next==settings)break;
+                        settings=std::move(next);
+                        luma=medianLuma(imageFromFrame(host.render_variant(settings)));
+                    }
+                    if(std::abs(delta)>=0.05)++limited;  // clamped at the slider range or not yet converged
+                    const auto finalFrame=host.render_variant(settings);
+                    const auto thumbnail=imageFromFrame(finalFrame)
+                        .scaled(180,120,Qt::KeepAspectRatio,Qt::SmoothTransformation);
+                    const double exposure=settings.print_exposure;
+                    QMetaObject::invokeMethod(this,[this,gen,index=target.index,exposure,thumbnail]{
+                        if(generation_!=gen)return;
+                        if(index>=0&&index<int(library_.size())) {
+                            auto& item=library_[index];
+                            item.undo.push_back(itemState(item));
+                            if(item.undo.size()>64)item.undo.erase(item.undo.begin());
+                            item.redo.clear();
+                            item.settings.print_exposure=exposure;
+                            item.pending_save=true;item.thumbnail=thumbnail;item.error.clear();
+                        }
+                        ++balance_progress_;
+                        emit libraryChanged();emit historyChanged();emit stateChanged();
+                    },Qt::QueuedConnection);
+                    ++done;
+                }catch(const std::exception& e){
+                    failed.append(QFileInfo(target.url.toLocalFile()).fileName()+": "+text(e.what()));
+                }
+            }
+            r.message=(cancel->load()?QStringLiteral("亮度均衡已取消：调整 %1/%2 张，正片跳过 %3 张，未完全收敛 %4 张")
+                                     :QStringLiteral("亮度已均衡至「%5」：调整 %1/%2 张，正片跳过 %3 张，未完全收敛 %4 张"))
+                          .arg(done).arg(targets.size()).arg(slides).arg(limited);
+            if(!cancel->load())r.message=r.message.arg(referenceName);
+            if(!failed.isEmpty())r.message+=QStringLiteral("\n失败：")+failed.join(QStringLiteral("；"));
+            if(!failed.isEmpty())r.error=r.message;
+        }catch(const std::exception& e){r.error=text(e.what());}
+        return r;
+    },QStringLiteral("正在均衡亮度…"),"balance-brightness");
+}
+void PreviewController::cancelBalance(){if(cancel_balance_)cancel_balance_->store(true);}
+
+void PreviewController::scheduleThumbnails() {
+    if(!ready_||thumb_stopping_)return;
+    bool added=false;
+    {
+        std::lock_guard lock(thumb_mutex_);
+        for(int i=0;i<int(library_.size());++i) {
+            const auto& item=library_[i];
+            if(!item.thumbnail.isNull()||!item.error.isEmpty())continue;
+            if(i==active_index_&&busy_)continue;  // the main worker is rendering it now
+            ThumbJob job{i,item.url,item.mode,item.settings};
+            // Re-queue an existing entry for the same photo so the newest
+            // settings always win; a stale in-flight job is dropped at delivery.
+            const auto existing=std::find_if(thumb_jobs_.begin(),thumb_jobs_.end(),
+                [&](const ThumbJob& queued){return queued.index==i;});
+            if(existing!=thumb_jobs_.end())*existing=std::move(job);
+            else {thumb_jobs_.push_back(std::move(job));++thumbs_pending_;}
+            added=true;
+        }
+    }
+    if(added){emit libraryChanged();thumb_wake_.notify_one();}
+}
+void PreviewController::thumbLoop() {
+    std::unique_ptr<desktop::PreviewHost> host;
+    for(;;) {
+        ThumbJob job;
+        {
+            std::unique_lock lock(thumb_mutex_);
+            thumb_wake_.wait(lock,[&]{return thumb_stopping_||!thumb_jobs_.empty();});
+            if(thumb_stopping_)return;
+            job=std::move(thumb_jobs_.front());thumb_jobs_.pop_front();
+        }
+        if(!host) {
+            // No session cache here: the thumbnail pass visits each photo
+            // once, and cached sessions would pin GPU memory for nothing.
+            try {host=std::make_unique<desktop::PreviewHost>(resources_,0);}
+            catch(const std::exception&) {
+                // No second engine (for example no Vulkan device). Placeholders
+                // keep the explicit click-to-preview behaviour; nothing hangs.
+                QMetaObject::invokeMethod(this,[this]{
+                    {std::lock_guard lock(thumb_mutex_);thumb_jobs_.clear();}
+                    thumbs_pending_=0;emit libraryChanged();},Qt::QueuedConnection);
+                return;
+            }
+        }
+        QImage thumbnail;
+        QString error;
+        try {
+            const auto frame=host->open_raw(path(job.url),job.mode,job.settings,"live");
+            thumbnail=imageFromFrame(frame).scaled(180,120,Qt::KeepAspectRatio,Qt::SmoothTransformation);
+        }catch(const std::exception& e){error=text(e.what());}
+        QMetaObject::invokeMethod(this,[this,index=job.index,mode=job.mode,
+                                         settings=job.settings,thumbnail,error]{
+            if(index>=0&&index<int(library_.size())) {
+                auto& item=library_[index];
+                const bool current=item.mode==mode&&sameSettings(item.settings,settings);
+                if(current&&item.thumbnail.isNull()) {
+                    if(error.isEmpty())item.thumbnail=thumbnail;
+                    else item.error=error;
+                }
+                // A stale or superseded job only retires its pending count.
+            }
+            --thumbs_pending_;
+            emit libraryChanged();
+        },Qt::QueuedConnection);
+    }
 }

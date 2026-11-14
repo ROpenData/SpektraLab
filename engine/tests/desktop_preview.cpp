@@ -375,6 +375,51 @@ void edit_controls(const fs::path& resources, const fs::path& raw, const fs::pat
     current = host.open_raw(raw, DecodeMode::compatible16, settings);
     check(frame_fingerprint(*current) == switched,
           "stock switch settings differ from a fresh session with the same edits");
+
+    // Effects-gallery variant renders. A live-tier cell must not replace the
+    // held full-resolution frame, must stay within the live long edge, and
+    // must leave the session's applied parameters exact: the next full render
+    // after any variant still matches a fresh session with those settings.
+    // A broken delta base would silently reuse the variant's negative here.
+    const auto full_before = current;
+    auto variant_settings = settings;
+    const auto variant_film = std::find_if(host.catalog().films.begin(), host.catalog().films.end(),
+        [&](const Stock& stock) { return stock.id != settings.film_stock; });
+    check(variant_film != host.catalog().films.end(), "no alternate film for the variant test");
+    variant_settings.film_stock = variant_film->id;
+    const auto variant = host.render_variant(variant_settings);
+    check(host.current() == full_before, "variant render replaced the main frame");
+    check(std::max(variant->width(), variant->height()) <= 1600, "variant exceeded the live tier long edge");
+    check(variant->width() < full_before->width() || variant->height() < full_before->height(),
+          "variant was not rendered at a reduced tier");
+    check(variant->settings.film_stock == variant_film->id, "variant frame lost its film");
+    check(variant->bgra8.size() == std::size_t(variant->width()) * variant->height() * 4,
+          "variant display copy is not tightly packed");
+    auto restored = host.render(settings);
+    check(restored->settings.film_stock == settings.film_stock, "post-variant render lost the base film");
+    check(!restored->reprint() && !restored->negative_was_cached(),
+          "post-variant render silently reused another film's negative");
+    const auto after_variants = frame_fingerprint(*restored);
+    current = host.open_raw(raw, DecodeMode::compatible16, settings);
+    check(frame_fingerprint(*current) == after_variants,
+          "variant renders desynchronized the session's applied parameters");
+    check(host.current() == current, "post-variant reopen did not publish its frame");
+
+    // Session cache: switching modes away and back reuses the retained
+    // compatible16 session — no decode, no upload — and the reprint is
+    // pixel-identical (fixed pipeline seeds, deterministic settings here).
+    const auto before_cache = frame_fingerprint(*current);
+    auto headroom_reopen = host.open_raw(raw, DecodeMode::headroom, settings);
+    check(headroom_reopen->timings.decode_ms > 0.0, "headroom open skipped its own decode");
+    current = host.open_raw(raw, DecodeMode::compatible16, settings);
+    check(current->timings.decode_ms == 0.0 && current->timings.open_ms == 0.0,
+          "cached compatible reopen paid decode or upload again");
+    check(frame_fingerprint(*current) == before_cache,
+          "cached reopen differs from the original compatible render");
+    check(host.current() == current, "cached reopen did not publish its frame");
+    Json variant_entry = frame_report(*variant);
+    variant_entry.set("edit", Json(std::string("effects-gallery variant")));
+    renders.push(std::move(variant_entry));
     check(frame_fingerprint(*held) == held_pixels, "desktop edits mutated previously held pixels");
     report.set("status", Json(std::string("passed")));
     report.set("checks", Json(double(checks)));
@@ -491,6 +536,7 @@ void integration(const fs::path& resources, const fs::path& arw,
         const auto& catalog = host.catalog();
         check(catalog.films.size() > 1 && !catalog.papers.empty(), "desktop catalog unavailable");
         rejected([&] { host.render({}); }, "render before open accepted");
+        rejected([&] { host.render_variant({}); }, "variant render before open accepted");
         first = host.open_raw(arw, DecodeMode::compatible16);
         check(first && first == host.current(), "successful open did not publish its frame");
         check(first->width() == 4688 && first->height() == 7028, "full Sony ARW fixture dimensions differ");

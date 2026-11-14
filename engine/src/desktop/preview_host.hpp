@@ -93,9 +93,14 @@ std::vector<std::uint8_t> rgba16_to_bgra8(const spk_result& result);
 // Construct, call and destroy on one serial worker thread. Public operations
 // throw std::runtime_error on failure. The UI may concurrently read shared
 // const Frames, which stay valid after this host and its engine are destroyed.
+// session_cache is how many recently used OTHER photos keep their engine
+// session alive, so switching back pays only a parameter delta and a reprint
+// instead of the 1-3 s RAW decode plus the spk_open upload. Each cached
+// session pins GPU memory (source and per-tier images) until evicted.
 class PreviewHost final {
 public:
-    explicit PreviewHost(const std::filesystem::path& resources);
+    explicit PreviewHost(const std::filesystem::path& resources,
+                         std::size_t session_cache = 2);
     ~PreviewHost();
     PreviewHost(const PreviewHost&) = delete;
     PreviewHost& operator=(const PreviewHost&) = delete;
@@ -106,12 +111,19 @@ public:
 
     // New-file open is transactional: decode/open/render/display conversion
     // must all succeed before replacing the previous session and frame.
+    // The optional tier selects the render resolution ("full" by default,
+    // "live" ~1600 px long edge for background thumbnails).
     FramePtr open_raw(const std::filesystem::path& source, DecodeMode mode,
-                      const RenderSettings& settings = {});
+                      const RenderSettings& settings = {}, const char* tier = "full");
     // Only changed settings are sent. Print-side edits request spk_reprint;
     // the result's actual cache flag determines whether reuse occurred.
     // A failure never mutates the previously returned Frame.
     FramePtr render(const RenderSettings& settings);
+    // Renders one effects-gallery cell at the engine's "live" tier (~1600 px
+    // long edge). The main full-resolution frame is not replaced; the session's
+    // applied parameters track the variant so the next render() delta stays
+    // correct. Throw/failure semantics match render().
+    FramePtr render_variant(const RenderSettings& settings);
     // Exports exactly the supplied frame, even after a newer one was opened.
     // Existing files are never overwritten. Returns only after the writer
     // has completed and closed the file; errors retain its cleanup details.

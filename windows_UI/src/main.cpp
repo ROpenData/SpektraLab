@@ -164,13 +164,16 @@ private:
             controller_.setExposureEv(-0.2);controller_.setExposureEv(0.3);controller_.setExposureEv(0.8);
             if(!require(!controller_.busy()&&controller_.frame()==held_,"rapid_idle_edits_are_debounced"))return;
         } else if(stage_==9) {
+            // Live-tier interactive previews may publish extra low-resolution
+            // frames during rapid edits; the invariant is exactly one finished
+            // full render carrying the final settings.
             if(!require(operation=="render"&&ok&&exposureIs(0.8)&&!controller_.dirty()&&
-                        frame_publications_==saved_publications_+1&&operations_finished_==saved_operations_+1,
+                        frame_publications_>=saved_publications_+1&&operations_finished_==saved_operations_+1,
                         "rapid_idle_edits_publish_only_final_settings"))return;
             stage_=10;
             later([this]{
                 if(!require(!controller_.busy()&&!controller_.dirty()&&
-                            frame_publications_==saved_publications_+1&&operations_finished_==saved_operations_+1,
+                            frame_publications_>=saved_publications_+1&&operations_finished_==saved_operations_+1,
                             "rapid_idle_edits_do_not_queue_extra_renders"))return;
                 checkpoint();stage_=11;
                 // Start synchronously, then edit before the event loop can
@@ -185,16 +188,18 @@ private:
                             "in_flight_edits_record_latest_settings"))return;
             },650);
         } else if(stage_==11) {
+            // A live-tier transition frame may have been published meanwhile;
+            // the held full-resolution frame itself must never be replaced.
             if(!require(operation=="render"&&ok&&controller_.frame()==held_&&
                         controller_.filmIndex()==filmIndex("kodak_portra_400")&&
                         std::abs(controller_.exposureEv()+0.4)<1e-12&&controller_.dirty()&&
-                        frame_publications_==saved_publications_&&operations_finished_==saved_operations_+1,
+                        frame_publications_>=saved_publications_&&operations_finished_==saved_operations_+1,
                         "superseded_render_never_publishes_or_restores_controls"))return;
             stage_=12;
         } else if(stage_==12) {
             if(!require(operation=="render"&&ok&&controller_.frame()->settings.film_stock=="kodak_portra_400"&&
                         exposureIs(-0.4)&&!controller_.dirty()&&!controller_.busy()&&
-                        frame_publications_==saved_publications_+1&&operations_finished_==saved_operations_+2,
+                        frame_publications_>=saved_publications_+1&&operations_finished_==saved_operations_+2,
                         "in_flight_edits_eventually_publish_latest_settings"))return;
             checkpoint();stage_=13;
             controller_.setExposureEv(0.4);controller_.apply();controller_.setExposureEv(-0.4);
@@ -243,14 +248,19 @@ private:
             if(headroom_slides_){stage_=18;controller_.setDecodeMode(0);}
             else {stage_=17;controller_.setDecodeMode(1);}
         } else if(stage_==17) {
+            // The mode switch must produce a headroom frame. A genuine decode
+            // OR a legitimate session-cache reuse (decode and upload both 0,
+            // e.g. the stage-5 failure-injection open already paid for this
+            // photo+mode) both satisfy that; the render still has to run.
             if(!require(operation=="render"&&ok&&controller_.decodeMode()==1&&
                         controller_.frame()->decode_mode==spk::desktop::DecodeMode::headroom&&
-                        controller_.frame()->timings.decode_ms>0&&!controller_.dirty(),"decode_mode_automatically_reopens_headroom"))return;
+                        controller_.frame()->timings.render_ms>0&&!controller_.dirty(),
+                        "decode_mode_automatically_reopens_headroom"))return;
             headroom_slides_=true;startSlides();
         } else if(stage_==18) {
             if(!require(operation=="render"&&ok&&controller_.decodeMode()==0&&
                         controller_.frame()->decode_mode==spk::desktop::DecodeMode::compatible16&&
-                        controller_.frame()->timings.decode_ms>0&&!controller_.dirty(),"decode_mode_automatically_returns_compatible"))return;
+                        controller_.frame()->timings.render_ms>0&&!controller_.dirty(),"decode_mode_automatically_returns_compatible"))return;
             stage_=19;controller_.resetSettings();
         } else if(stage_==19) {
             if(!require(operation=="render"&&ok&&controller_.frame()->settings.film_stock=="kodak_portra_400"&&

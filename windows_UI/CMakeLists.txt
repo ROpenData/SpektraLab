@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 # Also usable as add_subdirectory(windows_UI) after the engine defines
 # spk_desktop_host. The standalone mode never modifies the engine checkout.
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(SpektraLabWindowsUI LANGUAGES CXX)
+    project(SpektraLabWindowsUI LANGUAGES C CXX)
     include(CTest)
     set(SPEKTRALAB_SOURCE_ROOT "" CACHE PATH "Source tree supplying engine/")
     if(NOT EXISTS "${SPEKTRALAB_SOURCE_ROOT}/engine/CMakeLists.txt")
@@ -24,13 +24,15 @@ qt_add_executable(SpektraLabQt WIN32
     src/main.cpp src/PreviewController.hpp src/PreviewController.cpp
     src/FrameOutput.hpp src/FrameOutput.cpp
     src/EditStore.hpp src/EditStore.cpp
-    src/FrameCanvas.hpp src/FrameCanvas.cpp)
+    src/FrameCanvas.hpp src/FrameCanvas.cpp
+    src/appicon.rc)
 target_compile_features(SpektraLabQt PRIVATE cxx_std_20)
 target_link_libraries(SpektraLabQt PRIVATE
     spk_desktop_host Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2)
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 qt_add_qml_module(SpektraLabQt URI SpektraLab VERSION 1.0
     QML_FILES qml/Main.qml qml/Theme.qml qml/Section.qml qml/ActionButton.qml
+        qml/EffectsGallery.qml
     NO_CACHEGEN)
 set_target_properties(SpektraLabQt PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/app")
 

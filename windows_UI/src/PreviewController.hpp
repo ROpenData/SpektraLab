@@ -44,6 +44,15 @@ class PreviewController final : public QObject {
     Q_PROPERTY(bool batchExporting READ batchExporting NOTIFY stateChanged)
     Q_PROPERTY(int batchProgress READ batchProgress NOTIFY stateChanged)
     Q_PROPERTY(int batchTotal READ batchTotal NOTIFY stateChanged)
+    Q_PROPERTY(QVariantList galleryFilms READ galleryFilms NOTIFY galleryChanged)
+    Q_PROPERTY(bool galleryBusy READ galleryBusy NOTIFY stateChanged)
+    Q_PROPERTY(int galleryProgress READ galleryProgress NOTIFY stateChanged)
+    Q_PROPERTY(int galleryTotal READ galleryTotal NOTIFY stateChanged)
+    Q_PROPERTY(bool balanceBusy READ balanceBusy NOTIFY stateChanged)
+    Q_PROPERTY(int balanceProgress READ balanceProgress NOTIFY stateChanged)
+    Q_PROPERTY(int balanceTotal READ balanceTotal NOTIFY stateChanged)
+    Q_PROPERTY(int thumbsPending READ thumbsPending NOTIFY libraryChanged)
+    Q_PROPERTY(QImage emptyImage READ emptyImage CONSTANT)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
     Q_PROPERTY(bool canRedo READ canRedo NOTIFY historyChanged)
     Q_PROPERTY(QString persistenceWarning READ persistenceWarning NOTIFY stateChanged)
@@ -92,6 +101,15 @@ public:
     bool batchExporting() const { return busy_ && active_operation_=="batch-export"; }
     int batchProgress() const { return batch_progress_; }
     int batchTotal() const { return batch_total_; }
+    QVariantList galleryFilms() const { return gallery_films_; }
+    bool galleryBusy() const { return busy_ && active_operation_=="effects-gallery"; }
+    int galleryProgress() const { return gallery_progress_; }
+    int galleryTotal() const { return gallery_total_; }
+    bool balanceBusy() const { return busy_ && active_operation_=="balance-brightness"; }
+    int balanceProgress() const { return balance_progress_; }
+    int balanceTotal() const { return balance_total_; }
+    int thumbsPending() const { return thumbs_pending_; }
+    QImage emptyImage() const { return {}; }  // typed null for QML bindings
     void setFilmIndex(int value);
     void setPaperIndex(int value);
     void setDecodeMode(int value);
@@ -103,6 +121,8 @@ public:
     Q_INVOKABLE void setItemSelected(int index, bool selected);
     Q_INVOKABLE void selectAllPhotos(bool selected);
     Q_INVOKABLE void syncSelectedSettings(bool includeCrop=false);
+    Q_INVOKABLE void applyFilmToSelected();
+    Q_INVOKABLE void applyPaperToSelected();
     Q_INVOKABLE void setAdjustment(const QString& name, const QVariant& value);
     Q_INVOKABLE void setCropRect(const QRectF& crop);
     Q_INVOKABLE void resetCrop();
@@ -123,6 +143,10 @@ public:
     Q_INVOKABLE void exportImage(const QUrl& path, int format, int quality, int maxLongEdge);
     Q_INVOKABLE void exportBatch(const QUrl& folder, int format, int quality, int maxLongEdge);
     Q_INVOKABLE void cancelExport();
+    Q_INVOKABLE void openEffectsGallery();
+    Q_INVOKABLE void cancelEffectsGallery();
+    Q_INVOKABLE void balanceBrightness();
+    Q_INVOKABLE void cancelBalance();
     Q_INVOKABLE void resetSettings();
     Q_INVOKABLE void setDialogOpen(bool open);
 signals:
@@ -134,6 +158,7 @@ signals:
     void libraryChanged();
     void geometryChanged();
     void historyChanged();
+    void galleryChanged();
     void initialized(bool success);
     void operationFinished(const QString& operation, bool success);
 private:
@@ -152,6 +177,8 @@ private:
     void deliver(Reply reply);
     void accept(Reply reply);
     void submit(Job job, QString status, QString operation);
+    void submitQuiet(Job job);   // queue without the busy/status machinery
+    void applyLive();            // live-tier interactive preview
     spk::desktop::RenderSettings settings() const;
     void restoreSettings();
     void loadSettings(const spk::desktop::RenderSettings&, spk::desktop::DecodeMode);
@@ -201,11 +228,35 @@ private:
     std::vector<spk::desktop::editing::State> gesture_redo_;
     int batch_progress_=0, batch_total_=0;
     std::shared_ptr<std::atomic_bool> cancel_batch_;
+    QVariantList gallery_films_;
+    int gallery_progress_=0, gallery_total_=0;
+    std::shared_ptr<std::atomic_bool> cancel_gallery_;
+    int balance_progress_=0, balance_total_=0;
+    std::shared_ptr<std::atomic_bool> cancel_balance_;
+    // Background thumbnails: a second PreviewHost on its own thread decodes
+    // unvisited photos at the live tier so the filmstrip fills itself in
+    // without blocking the main render worker. Vulkan supports two engines
+    // in one process; deliveries carry a settings snapshot so stale renders
+    // never overwrite newer state.
+    struct ThumbJob { int index; QUrl url; spk::desktop::DecodeMode mode; spk::desktop::RenderSettings settings; };
+    void scheduleThumbnails();
+    void thumbLoop();
+    std::thread thumb_worker_;
+    std::deque<ThumbJob> thumb_jobs_;
+    std::mutex thumb_mutex_;
+    std::condition_variable thumb_wake_;
+    bool thumb_stopping_=false;
+    int thumbs_pending_=0;
     ImageFactory image_factory_;
     quint64 generation_=0;
     quint64 settings_revision_=0;
+    // Highest settings revision published by a full-resolution frame. Live
+    // preview replies at or below it are stale and must not overwrite the
+    // sharper image.
+    quint64 last_full_revision_=0;
     QString active_operation_;
     QTimer auto_apply_;
+    QTimer live_timer_;
     bool dialog_open_=false;
     std::mutex mutex_;
     std::condition_variable wake_;

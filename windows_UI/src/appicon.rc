@@ -1,0 +1,30 @@
+// Windows resource for the Spektra XD fork: application icon and version
+// metadata. Keep the GPL notice in sync with the repository licence.
+#include <windows.h>
+
+101 ICON "../icons/spektra_xd.ico"
+
+1 VERSIONINFO
+FILEVERSION     2,3,2,0
+PRODUCTVERSION  2,3,2,0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"  // English (US), Unicode
+        BEGIN
+            VALUE "CompanyName",      "Spektra XD"
+            VALUE "FileDescription",  "Spektra XD - film and paper simulation (SpektraLab Windows fork)"
+            VALUE "FileVersion",      "2.3.2.0"
+            VALUE "LegalCopyright",   "GPL-3.0-or-later; SpektraLab name and icon are upstream trademarks"
+            VALUE "ProductName",      "Spektra XD"
+            VALUE "ProductVersion",   "2.3.2.0-xd"
+            VALUE "OriginalFilename", "SpektraLabQt.exe"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

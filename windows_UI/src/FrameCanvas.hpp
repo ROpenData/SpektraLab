@@ -29,6 +29,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent*) override;
     void mouseUngrabEvent() override;
     void mouseDoubleClickEvent(QMouseEvent*) override;
+    void wheelEvent(QWheelEvent*) override;
     void itemChange(ItemChange,const ItemChangeData&) override;
 private:
     double dpr() const;
@@ -37,5 +38,7 @@ private:
     QImage image_;
     quint64 revision_=0;
     bool fit_=true,dragging_=false;
+    // Continuous wheel-zoom scale used while not fit; 1.0 is exact 100%.
+    double zoom_=1.0;
     QPointF pan_,last_mouse_;
 };

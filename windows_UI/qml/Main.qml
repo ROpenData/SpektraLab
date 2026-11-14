@@ -11,7 +11,7 @@ ApplicationWindow {
     minimumWidth: 1100; minimumHeight: 740
     visible: true
     color: Theme.card
-    title: (preview.hasFrame ? preview.fileName + " — " : "") + "SpektraLab"
+    title: (preview.hasFrame ? preview.fileName + " — " : "") + "Spektra XD"
     font.family: "Segoe UI"
     font.pixelSize: 12
     palette.window: Theme.card
@@ -31,10 +31,18 @@ ApplicationWindow {
     readonly property bool canBrowse: preview.ready && !preview.busy && !preview.batchExporting && !cropMode
     // Text controls keep their own undo stack while they own keyboard focus.
     readonly property bool editingText: activeFocusItem !== null && typeof activeFocusItem.text === "string" && typeof activeFocusItem.undo === "function"
+    // Selected photos other than the one being edited — the targets of
+    // "apply film to selected".
+    readonly property int selectedOthers: {
+        var n = 0
+        for (var i = 0; i < preview.libraryItems.length; ++i)
+            if (preview.libraryItems[i].selected && !preview.libraryItems[i].active) ++n
+        return n
+    }
     onCropModeChanged: updateDialogState()
 
     function updateDialogState() {
-        preview.setDialogOpen(cropMode || openDialog.visible || saveDialog.visible || batchDialog.visible || exportPopup.visible)
+        preview.setDialogOpen(cropMode || openDialog.visible || saveDialog.visible || batchDialog.visible || exportPopup.visible || galleryPopup.visible)
     }
     function startCrop() {
         if (!canEditCrop) return
@@ -59,6 +67,13 @@ ApplicationWindow {
     }
     function openExport() { if (preview.hasFrame && !preview.busy && !cropMode) exportPopup.open() }
     function showExportOptions() { openExport() }
+    function openGallery() {
+        if (!preview.hasFrame || preview.busy || cropMode) return
+        // Submit the worker job first: openEffectsGallery refuses while any
+        // dialog (including this popup) is registered as open.
+        preview.openEffectsGallery()
+        galleryPopup.open()
+    }
     function formatFilter() {
         if (exportFormat === 3) return ["JPEG 图像 (*.jpg *.jpeg)"]
         if (exportFormat === 1 || exportFormat === 2) return ["PNG 图像 (*.png)"]
@@ -100,6 +115,7 @@ ApplicationWindow {
     }
     Shortcut { sequences: [StandardKey.Open]; enabled: window.canBrowse; onActivated: openDialog.open() }
     Shortcut { sequence: "Ctrl+E"; enabled: preview.hasFrame && !preview.busy && !window.cropMode; onActivated: window.openExport() }
+    Shortcut { sequence: "Ctrl+G"; enabled: preview.hasFrame && !preview.busy && !window.cropMode && !window.editingText; onActivated: window.openGallery() }
     Shortcut { sequence: "Ctrl+0"; enabled: preview.hasFrame; onActivated: canvas.resetView(true) }
     Shortcut { sequence: "Ctrl+1"; enabled: preview.hasFrame && !window.cropMode; onActivated: canvas.resetView(false) }
     Shortcut { sequence: "Ctrl+Z"; enabled: preview.settingsEditable && preview.canUndo && !window.cropMode && !window.editingText; onActivated: preview.undo() }
@@ -222,6 +238,16 @@ ApplicationWindow {
                             title: "胶片"
                             FilmGroup { positive: true }
                             FilmGroup { positive: false }
+                            ActionButton {
+                                objectName: "applyFilmButton"
+                                Layout.fillWidth: true
+                                text: window.selectedOthers > 0 ? "应用此胶片到选中（" + window.selectedOthers + " 张）" : "应用此胶片到选中"
+                                enabled: window.canBrowse && preview.hasFrame && window.selectedOthers > 0
+                                onClicked: preview.applyFilmToSelected()
+                                ToolTip.visible: hovered
+                                ToolTip.text: "只把当前胶片应用到所有选中的其他照片；曝光、相纸与裁切各自保留，可分别撤销。"
+                            }
+                            Note { text: "批量换胶片不影响每张照片自己的曝光、相纸与裁切。" }
                         }
                         Section {
                             title: "相纸"
@@ -246,6 +272,16 @@ ApplicationWindow {
                                     MouseArea { id: paperMouse; anchors.fill: parent; hoverEnabled: true; enabled: preview.settingsEditable && !preview.filmIsPositive; onClicked: preview.paperIndex = index }
                                 }
                             }
+                            ActionButton {
+                                objectName: "applyPaperButton"
+                                Layout.fillWidth: true
+                                text: window.selectedOthers > 0 ? "应用此相纸到选中（" + window.selectedOthers + " 张）" : "应用此相纸到选中"
+                                enabled: window.canBrowse && preview.hasFrame && window.selectedOthers > 0
+                                onClicked: preview.applyPaperToSelected()
+                                ToolTip.visible: hovered
+                                ToolTip.text: "只把当前相纸应用到所有选中的其他照片；反转片照片自动跳过，其余参数各自保留，可分别撤销。"
+                            }
+                            Note { text: "批量换相纸不影响每张照片自己的曝光与裁切；反转片不经过相纸。" }
                         }
                         Section {
                             title: "裁切"
@@ -320,6 +356,16 @@ ApplicationWindow {
                             }
                             Adjustment { label: "黄色滤镜"; setting: "yFilterShift"; from: -1; to: 1; step: 0.01; decimals: 2; available: !preview.filmIsPositive }
                             Adjustment { label: "洋红滤镜"; setting: "mFilterShift"; from: -1; to: 1; step: 0.01; decimals: 2; available: !preview.filmIsPositive }
+                            ActionButton {
+                                objectName: "balanceButton"
+                                Layout.fillWidth: true
+                                text: window.selectedOthers > 0 ? "均衡亮度到当前照片（" + window.selectedOthers + " 张）" : "均衡亮度到当前照片"
+                                enabled: window.canBrowse && preview.hasFrame && window.selectedOthers > 0
+                                onClicked: preview.balanceBrightness()
+                                ToolTip.visible: hovered
+                                ToolTip.text: "以当前照片的亮度为基准，自动调整其他选中照片的相纸亮度。每张可撤销；反转片跳过。"
+                            }
+                            Note { text: "均衡自动匹配亮度；之后仍可对单张微调相纸亮度。" }
                         }
                     }
                 }
@@ -335,6 +381,8 @@ ApplicationWindow {
                         anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
                         ActionButton { text: "导入 RAW"; enabled: window.canBrowse; onClicked: openDialog.open(); implicitHeight: 27 }
                         ActionButton { text: "导出"; enabled: preview.hasFrame && !preview.busy && !window.cropMode; onClicked: window.openExport(); implicitHeight: 27 }
+                        ActionButton { text: preview.selectedCount > 0 ? "批量导出（" + preview.selectedCount + "）" : "批量导出"; enabled: window.canBrowse && preview.selectedCount > 0; onClicked: batchDialog.open(); implicitHeight: 27; ToolTip.visible: hovered; ToolTip.text: "把所选照片按各自设置导出到文件夹，自动跳过同名文件。Ctrl+E 可先选格式与尺寸。" }
+                        ActionButton { text: "效果总览"; enabled: preview.hasFrame && !preview.busy && !window.cropMode; onClicked: window.openGallery(); implicitHeight: 27; ToolTip.visible: hovered; ToolTip.text: "一次查看当前照片在全部胶片下的效果 · Ctrl+G" }
                         ActionButton { text: "裁切"; accented: window.cropMode; enabled: window.canEditCrop; onClicked: window.cropMode ? window.finishCrop() : window.startCrop(); implicitHeight: 27 }
                         ActionButton { objectName: "undoButton"; text: "撤销"; enabled: preview.settingsEditable && preview.canUndo && !window.cropMode; onClicked: preview.undo(); implicitHeight: 27; ToolTip.visible: hovered; ToolTip.text: "撤销当前照片的上一步调整 · Ctrl+Z" }
                         ActionButton { objectName: "redoButton"; text: "重做"; enabled: preview.settingsEditable && preview.canRedo && !window.cropMode; onClicked: preview.redo(); implicitHeight: 27; ToolTip.visible: hovered; ToolTip.text: "重做当前照片的调整 · Ctrl+Shift+Z / Ctrl+Y" }
@@ -435,7 +483,7 @@ ApplicationWindow {
                                 required property int index
                                 width: 132; height: filmstrip.height - 3
                                 color: Theme.wellDark; border.color: modelData.active ? Theme.accent : Theme.line; border.width: modelData.active ? 2 : 0
-                                Text { anchors.centerIn: parent; anchors.verticalCenterOffset: -8; text: modelData.error ? "无法读取" : "点击预览"; color: modelData.error ? "#ffb39f" : Theme.muted; font.pixelSize: 10 }
+                                Text { anchors.centerIn: parent; anchors.verticalCenterOffset: -8; text: modelData.error ? "无法读取" : preview.thumbsPending > 0 ? "后台解码中…" : "点击预览"; color: modelData.error ? "#ffb39f" : Theme.muted; font.pixelSize: 10 }
                                 FrameCanvas { anchors.fill: parent; anchors.margins: 5; anchors.bottomMargin: 22; image: modelData.thumbnail; enabled: false }
                                 Text { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 6; text: modelData.name; color: Theme.text; font.pixelSize: 10; elide: Text.ElideMiddle }
                                 MouseArea {
@@ -503,6 +551,8 @@ ApplicationWindow {
                             Note { objectName: "persistenceWarningNote"; text: preview.persistenceWarning; visible: text.length > 0; color: "#ffb39f" }
                             ProgressBar { Layout.fillWidth: true; visible: preview.batchExporting; from: 0; to: Math.max(1, preview.batchTotal); value: preview.batchProgress }
                             ActionButton { Layout.fillWidth: true; text: "当前照片完成后停止"; visible: preview.batchExporting; onClicked: preview.cancelExport() }
+                            ProgressBar { Layout.fillWidth: true; visible: preview.balanceBusy; from: 0; to: Math.max(1, preview.balanceTotal); value: preview.balanceProgress }
+                            ActionButton { Layout.fillWidth: true; text: "取消亮度均衡"; visible: preview.balanceBusy; onClicked: preview.cancelBalance() }
                             ActionButton { Layout.fillWidth: true; text: "重新尝试预览"; visible: preview.failed && preview.hasFrame && !preview.batchExporting; enabled: !preview.busy; onClicked: preview.apply() }
                         }
                     }
@@ -551,4 +601,5 @@ ApplicationWindow {
             ActionButton { Layout.alignment: Qt.AlignRight; text: "取消"; onClicked: exportPopup.close() }
         }
     }
+    EffectsGallery { id: galleryPopup }
 }
