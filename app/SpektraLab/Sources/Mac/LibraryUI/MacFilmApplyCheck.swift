@@ -216,8 +216,11 @@ enum MacFilmApplyCheck {
             // 7. The never-opened fourth, chosen alone: its frame is made with the film on it.
             actions.applyFilm("kodak_tri_x_400", onto: [neverOpened], store: store, model: model)
             await actions.pastesLanded()
-            let framed = await wait(30) { neverOpened.develop.flatMap { library.frame($0.frameID) } != nil }
-            let madeFilm = neverOpened.develop.flatMap { library.frame($0.frameID) }.map { $0.edit.params.filmStock }
+            // The row is re-read as it lands: the MacImage taken at the catalog's making is a value
+            // copy whose develop never joins (the store's rows are patched in place).
+            let fourth = { store.images.first { $0.id == neverOpened.id } }
+            let framed = await wait(30) { fourth()?.develop.flatMap { library.frame($0.frameID) } != nil }
+            let madeFilm = fourth()?.develop.flatMap { library.frame($0.frameID) }.map { $0.edit.params.filmStock }
             r.note("the never-opened fourth", ["framed": framed, "film": madeFilm ?? "-"])
             r.check(framed && madeFilm == "kodak_tri_x_400", "a frame is made for a picture never opened, with the film on it")
         } catch {

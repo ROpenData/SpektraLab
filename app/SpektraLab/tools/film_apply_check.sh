@@ -3,7 +3,8 @@
 # MacFilmApplyCheck.swift): the emulsion alone moves and each picture keeps the rest of its own,
 # previews develop again, one step of history names the film, Undo takes a frame back on a page and
 # off one, the film a frame already has says so and makes nothing, and a picture never opened has its
-# frame made with the film on it. A run under a minute means nothing developed (trap 26).
+# frame made with the film on it. The fixtures are JPEGs, whose preview develops take seconds — the
+# check waits for each one and fails if it never lands (a run that ends early has failed a wait).
 #
 # The check's report is $out/report.json; the run's log $out/run.log. A Debug build first
 # (tools/build_engine_mac.sh, gen_project.py, xcodebuild --configuration Debug).
@@ -26,6 +27,10 @@ bin="$app/Contents/MacOS/SpektraLab"
 source "$here/tools/check_app.sh"; check_app_isolate "$app"
 home=$(mktemp -d "${TMPDIR:-/tmp}/film-apply-check-home.XXXXXX")
 suite="spk.film-apply-check.$(basename "$home")"
+# The launch's Check for Updates is off for the run: its announcement presents while the check is
+# driving the window, and a check's word is only of what it checked.
+mkdir -p "$home/Library/Preferences"
+defaults write "$suite" "settings.checksForUpdates" -bool NO
 rm -rf "$out"; mkdir -p "$out" "$home/in"
 # Three pictures of the check's own, copied (a develop writes to the library, never the source):
 # the same scene three times, for the check tells them apart by their frames, not their pixels.
