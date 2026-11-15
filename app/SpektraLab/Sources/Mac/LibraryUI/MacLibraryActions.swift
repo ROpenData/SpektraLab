@@ -191,6 +191,41 @@ final class MacLibraryActions {
         model.copySettings(of: frameID, groups: ClipboardGroup.remembered())
     }
 
+    // MARK: Apply Film (over a selection)
+
+    /// The Apply Film picker a cell's menu opens (`MacApplyFilmSheet`): the chosen pictures, until
+    /// the sheet's film or its Cancel ends it. One at a time; a second ask replaces the first.
+    struct ApplyFilmAsk: Identifiable, Equatable {
+        var images: [MacImage]
+        var id: String { "apply-film" }
+    }
+    var applyFilmAsk: ApplyFilmAsk?
+
+    /// **Apply Film** onto every one of `images` (the one-act batch the Windows fork's button is): the
+    /// film the sheet chose, or the open page's own (the panel's button), put onto each picture with
+    /// its own paper, exposure and adjustments kept — the emulsion alone moves
+    /// (`FrameEdit.applied(film:)`), as a paste moves whole settings. Everything else about the act
+    /// is a paste's: the pictures that have a frame now, one made for the rest `carryLimit` at a
+    /// time (a picture never opened has no frame to hold a film), frames through their open page
+    /// undone with one ⌘Z, previews owed again behind the page's edits with a Stop, and the
+    /// offline and the unreadable left out with their refusal. A picture the film is already on
+    /// takes nothing and says so.
+    func applyFilm(_ film: String, onto images: [MacImage], store: any MacLibraryData, model: AppServices) {
+        guard !images.isEmpty, let stock = StockCatalog.shared.stock(film) else { return }
+        act(Act(
+            making: { L("Applying \(stock.shortName) onto \($0) pictures…") },
+            refusalTitle: L("Film cannot be applied"),
+            offline: { L("\($0) of the pictures are offline: they kept their film.") },
+            unreadable: { L("\($0) of the pictures could not be read: they kept their film.") },
+            said: { count in
+                count == 1 ? L("\(stock.shortName) applied onto 1 picture. The rest of its settings are its own.")
+                    : L("\(stock.shortName) applied onto \(count) pictures. The rest of their settings are their own.")
+            },
+            none: L("Every chosen picture is already on \(stock.shortName)."),
+            apply: { frames, _, stops in apply(film, named: stock.shortName, onto: frames, model: model, stops: stops) }
+        ), onto: images, store: store, model: model)
+    }
+
     /// What the last paste onto pictures that are not open says, for a while: in the sidebar's activity
     /// line (图库) and in the info strip under the picture while several are chosen (all three modes).
     /// Their tiles keep their old develop until each is opened or exported (the Mac's rule, below), so
@@ -239,6 +274,37 @@ final class MacLibraryActions {
             refusal = line
             return
         }
+        act(Act(apply: { frames, _, stops in paste(clip, onto: frames, model: model, stops: stops) }),
+            onto: images, store: store, model: model)
+    }
+
+    /// One act over a selection (a paste, an Apply Film): the words that differ between them and the
+    /// apply itself over frames that have one. A paste's words are the defaults, so a paste's notice
+    /// keeps its sentences; `Pasted` is both acts' arithmetic.
+    private struct Act {
+        /// The making notice, by how many pictures still wait for their frames.
+        var making: (Int) -> String = { L("Pasting settings onto \($0) pictures…") }
+        /// The refusal's title when pictures were left out.
+        var refusalTitle: String = L("Settings cannot be pasted")
+        /// The left-out pictures, by how many are offline / could not be read.
+        var offline: (Int) -> String = { L("\($0) of the pictures are offline: they kept their settings.") }
+        var unreadable: (Int) -> String = { L("\($0) of the pictures could not be read: they kept their settings.") }
+        /// What the act says when it has landed, by how many frames it reached. A paste's counts every
+        /// picture reached; an Apply Film's counts the frames the film moved.
+        var said: (Int) -> String = { $0 == 1 ? L("Settings pasted onto 1 picture.") : L("Settings pasted onto \($0) pictures.") }
+        /// What the notice says when no frame was reached at all: a paste clears itself (its refusal
+        /// says the rest), an Apply Film says every chosen picture is already on the film.
+        var none: String? = nil
+        /// The apply itself: onto the frames the pictures have, through the model, at a Stop generation.
+        var apply: (_ frames: [LibraryFrame.ID], _ model: AppServices, _ stops: Int) -> Pasted
+    }
+
+    /// The shared flow under `pasteSettings` and `applyFilm` (the owner's 2026-11-05 review, both acts):
+    /// the pictures that have a frame are applied to at once, in this event; one SpektraLab has never
+    /// opened has no frame to hold an edit — one is made for it, `CatalogSourcesStore.carryLimit` at a
+    /// time, each batch applied to as its frames arrive. One act makes frames at a time: a second waits
+    /// for the first and finds the frames it made, so no file gets two frames.
+    private func act(_ act: Act, onto images: [MacImage], store: any MacLibraryData, model: AppServices) {
         var known: [LibraryFrame.ID] = []
         var frameless: [MacImage] = []
         for image in images {
@@ -246,20 +312,20 @@ final class MacLibraryActions {
         }
         // The ones that have their frame (every one, the usual case in 冲洗/编辑): now.
         let generation = stops
-        let pasted = paste(clip, onto: known, model: model, stops: generation)
-        guard !frameless.isEmpty else { tell(pasted); return }
+        let landed = act.apply(known, model, generation)
+        guard !frameless.isEmpty else { tell(landed, of: act); return }
         let before = making
         makingCount += frameless.count
-        say(Notice(said: L("Pasting settings onto \(makingCount) pictures…")), for: nil)
+        say(Notice(said: act.making(makingCount)), for: nil)
         making = Task { [weak self] in
             await before?.value
-            await self?.make(frameless, clip: clip, pasted: pasted, store: store, model: model, stops: generation)
+            await self?.make(frameless, act: act, landed: landed, store: store, model: model, stops: generation)
         }
     }
 
-    /// The frames of `images`, made `carryLimit` at a time, each batch pasted onto as it arrives.
-    private func make(_ images: [MacImage], clip: SettingsClip, pasted: Pasted, store: any MacLibraryData, model: AppServices, stops generation: Int) async {
-        var total = pasted
+    /// The frames of `images`, made `carryLimit` at a time, each batch applied to as it arrives.
+    private func make(_ images: [MacImage], act: Act, landed: Pasted, store: any MacLibraryData, model: AppServices, stops generation: Int) async {
+        var total = landed
         var offline = 0, unreadable = 0
         var failure: String?
         var start = 0
@@ -268,7 +334,7 @@ final class MacLibraryActions {
             start += batch.count
             do {
                 let made = try await store.frames(for: batch.map(\.id), focus: nil).frames
-                total += paste(clip, onto: batch.compactMap { made[$0.id] }, model: model, stops: generation)
+                total += act.apply(batch.compactMap { made[$0.id] }, model, generation)
                 // Left out: offline when its file is not there, unreadable when it is (`adoptLibraryFiles`
                 // makes no frame of a file it cannot probe).
                 for image in batch where made[image.id] == nil {
@@ -280,13 +346,13 @@ final class MacLibraryActions {
             }
         }
         makingCount -= images.count
-        tell(total)
+        tell(total, of: act)
         let lines = [failure,
-                     offline > 0 ? L("\(offline) of the pictures are offline: they kept their settings.") : nil,
-                     unreadable > 0 ? L("\(unreadable) of the pictures could not be read: they kept their settings.") : nil]
+                     offline > 0 ? act.offline(offline) : nil,
+                     unreadable > 0 ? act.unreadable(unreadable) : nil]
             .compactMap { $0 }
         if !lines.isEmpty {
-            refusalTitle = L("Settings cannot be pasted")
+            refusalTitle = act.refusalTitle
             refusal = lines.joined(separator: "\n")
         }
     }
@@ -330,6 +396,41 @@ final class MacLibraryActions {
         NSLog("[clipboard] pasted onto %ld frames (%ld through a page), %ld previews owed", frames.count, frames.count - library.count, owed.count)
         #endif
         return Pasted(frames: Set(frames).count, paged: frames.count - library.count, developing: owed.count)
+    }
+
+    /// The apply of an Apply Film, as `paste` is a paste's: a frame whose develop page is open takes
+    /// its film through the session (one Undo, the page moving with it); every other takes it in the
+    /// library, which saves it (`applyFilm(_:onto:)`, one step of history on each frame it changed).
+    /// What it counts are the frames the film *moved* — a frame already on the film takes nothing —
+    /// so the notice never claims a picture that kept its emulsion.
+    private func apply(_ film: String, named name: String, onto frames: [LibraryFrame.ID], model: AppServices, stops generation: Int) -> Pasted {
+        guard !frames.isEmpty else { return Pasted() }
+        let label = HistoryLabel.film(name)
+        var library: Set<LibraryFrame.ID> = []
+        var paged = 0
+        for id in frames {
+            guard let session = model.openSession(id) else { library.insert(id); continue }
+            // Through the open page: one step of its history (PRD-F §3.3).
+            let was = session.edit
+            session.recording(.filmApply, label) { model.applyFilm(film, to: session) }
+            if session.edit != was { paged += 1 }
+        }
+        let redo = Set(model.applyFilm(film, onto: library))
+        // Every frame the film moved owes its preview again — a film change is always film-side, so
+        // there is no changed-but-owing-nothing frame a paste's Edit layer can leave. In the order
+        // applied (the grid's), so the tiles fill in order; a Stop since the press leaves the rest
+        // undeveloped, marked out of date (as a paste's).
+        var owed: [LibraryFrame.ID] = []
+        var seen: Set<LibraryFrame.ID> = []
+        for id in frames where library.contains(id) && seen.insert(id).inserted {
+            if redo.contains(id) { owed.append(id) }
+        }
+        if generation != stops { owed = [] }
+        feed(owed, model: model)
+        #if DEBUG
+        NSLog("[film] %@ applied onto %ld frames (%ld through a page), %ld previews owed", name, redo.count + paged, paged, owed.count)
+        #endif
+        return Pasted(frames: redo.count + paged, paged: paged, developing: owed.count)
     }
 
     /// Previews owed by pastes, not yet handed to the queue, in order.
@@ -402,19 +503,22 @@ final class MacLibraryActions {
         return owed.count
     }
 
-    /// The notice of a paste that reached frames outside their page; none when the page itself shows it.
-    private func tell(_ landed: Pasted) {
-        // Pastes that overlap (one still making frames when another lands) are told as one, when the
+    /// The notice of an act that reached frames outside their page; none when the page itself shows it.
+    /// `of act`: the act's sentences — a paste's and an Apply Film's differ in what they count (a paste
+    /// every picture reached, a film the frames it moved) and so in what nothing moved says.
+    private func tell(_ landed: Pasted, of act: Act) {
+        // Acts that overlap (one still making frames when another lands) are told as one, when the
         // last lands: neither's count is lost.
         told += landed
-        if makingCount > 0 { say(Notice(said: L("Pasting settings onto \(makingCount) pictures…")), for: nil); return }
+        if makingCount > 0 { say(Notice(said: act.making(makingCount)), for: nil); return }
         let pasted = told
         told = Pasted()
         guard pasted.frames > pasted.paged else {
-            if notice != nil { say(nil, for: nil) }
+            if pasted.frames == 0, let none = act.none { say(Notice(said: none), for: .seconds(8)) }
+            else if notice != nil { say(nil, for: nil) }
             return
         }
-        let said = pasted.frames == 1 ? L("Settings pasted onto 1 picture.") : L("Settings pasted onto \(pasted.frames) pictures.")
+        let said = act.said(pasted.frames)
         var more: [String] = []
         let outside = pasted.frames - pasted.paged
         if pasted.developing > 0 {
@@ -454,6 +558,12 @@ struct MacLibraryDialogs: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            // Apply Film's picker (a cell's menu): the films the catalogue has, shelf by shelf; a
+            // row applies and ends it (`MacApplyFilmSheet`).
+            .spkSheet(item: Binding(get: { actions.applyFilmAsk },
+                                    set: { actions.applyFilmAsk = $0 })) { ask in
+                MacApplyFilmSheet(images: ask.images)
+            }
             .alert(actions.refusalTitle ?? L("This picture cannot be opened"),
                    isPresented: Binding(get: { actions.refusal != nil },
                                         set: { if !$0 { actions.refusal = nil; actions.refusalTitle = nil } })) {

@@ -381,4 +381,18 @@ extension FrameEdit {
         e.params = held
         return e
     }
+
+    /// A film applied to this edit (Apply Film over a selection, the one-act batch): the emulsion
+    /// alone moves, loaded as a pick loads it — never by `filmStock` alone (PAGES.md §4 rule 8) —
+    /// with `recommendingPaper: false`, as a copied pair is validated: the frame's own paper is
+    /// kept where the new film prints on it, and a slide scans, its paper dormant. A frame the
+    /// film is already on takes nothing: the guard reads the film first, so `load` cannot flip a
+    /// scanned negative to a print. What the frame's own is — exposure, effects, a digital
+    /// intermediate, Layer 2 — stays; `held(to:)` is the caller's, as for a paste.
+    func applied(film id: String, catalog: StockCatalog = .shared) -> FrameEdit {
+        guard params.filmStock != id else { return self }
+        var e = self
+        e.params.load(film: id, catalog: catalog, recommendingPaper: false)
+        return e
+    }
 }

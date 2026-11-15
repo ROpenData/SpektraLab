@@ -218,8 +218,8 @@ app/SpektraLab/tools/selftest.sh                                 # the self-test
 - **An offscreen snapshot is not the window.** It cannot see a Metal layer, a stall or the window's own chrome. The
   Mac's own checks drive the real window from a launch argument and write a report: `--mac-drive`,
   `--library-check`, `--import-check`, `--export-check`, `--render-check`, `--settings-check`, `--lighttable-check`,
-  `--catalog-check`, `--clipboard-check`, `--drop-check` (`Sources/Mac/MacDriver.swift` and the `Mac*Check.swift`
-  files beside each page). A report with 0
+  `--catalog-check`, `--clipboard-check`, `--film-apply-check`, `--drop-check` (`Sources/Mac/MacDriver.swift` and
+  the `Mac*Check.swift` files beside each page). A report with 0
   failures that a person has not clicked through is said to be so.
 - Build Release as well as Debug before calling a change done (`AGENTS.md`): a path that reaches code under
   `#if DEBUG` compiles in Debug and fails in Release.

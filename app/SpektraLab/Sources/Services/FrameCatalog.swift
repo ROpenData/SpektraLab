@@ -515,6 +515,30 @@ final class FrameCatalog {
         return changed
     }
 
+    /// A film applied to frames (Apply Film over a selection, the one-act batch): the emulsion
+    /// alone moves, as `FrameEdit.applied(film:)` loads it — never `filmStock` alone — with the
+    /// frame's own paper, exposure and adjustments kept. Returns the frames that changed, which
+    /// must develop again: a film change is always film-side, so unlike a paste's there is no
+    /// changed-but-owing-nothing frame.
+    @discardableResult
+    func applyFilm(_ film: String, onto ids: Set<LibraryFrame.ID>) -> [LibraryFrame.ID] {
+        var changed: [LibraryFrame.ID] = []
+        var any = false
+        for id in ids {
+            guard let i = frames.firstIndex(where: { $0.id == id }) else { continue }
+            // Held as an edit that enters, and onto a half-frame pair: its look has no cut and
+            // no film edge of a frame's own (as a paste's).
+            var applied = frames[i].edit.applied(film: film).held(to: frames[i].originalSize)
+            if frames[i].isPair { applied = applied.asPairLook }
+            guard applied != frames[i].edit else { continue }
+            frames[i].edit = applied
+            changed.append(id)
+            any = true
+        }
+        if any { self.changed() }
+        return changed
+    }
+
     // MARK: the scheduler's news
 
     /// A job moved. Canvas jobs belong to the develop page and do not put a

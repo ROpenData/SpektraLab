@@ -22,6 +22,8 @@ enum HistoryOrigin: String, Codable, Sendable, CaseIterable {
     case paste
     /// A preset applied, one step per frame reached.
     case preset
+    /// Apply Film over a selection (the one-act batch), one step per frame reached.
+    case filmApply
     /// A half-frame pair's or a double exposure's step that changed this photograph's decode.
     case composite
     /// The edit changed where no step was recorded: an older build, a restored backup, a sweep of Settings, an
@@ -103,6 +105,8 @@ struct HistoryLabel: Codable, Equatable, Hashable, Sendable {
     }
     /// A preset applied, by its name.
     static func preset(_ name: String) -> HistoryLabel { HistoryLabel("Preset: \(name)") }
+    /// A film applied over a selection, by its short name — *Film: Portra 400*, never a profile id.
+    static func film(_ name: String) -> HistoryLabel { HistoryLabel("Film", value: name) }
     /// Crop's Done: Develop's crop of the photograph, and Edit's of the finished picture. One word for both, the
     /// crop page's own (`EditTool.crop`, `CoverRoute.crop`): the origin and the group tell them apart on the page.
     static let crop = HistoryLabel("Crop")

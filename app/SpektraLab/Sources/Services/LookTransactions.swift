@@ -61,6 +61,32 @@ extension AppServices {
         return redo
     }
 
+    /// **Apply Film onto frames with no page open** (the Mac's Apply Film over a selection): the
+    /// library's apply (`FrameCatalog.applyFilm`), and one step of history on each frame it
+    /// changed, as a paste's. A frame the film is already on is not one (`applied(film:)`'s guard),
+    /// so it takes no step. Returns the frames that must develop again.
+    @discardableResult
+    func applyFilm(_ film: String, onto ids: Set<LibraryFrame.ID>) -> [LibraryFrame.ID] {
+        let before = Dictionary(ids.compactMap { id in historyRevision(id).map { (id, $0) } }, uniquingKeysWith: { a, _ in a })
+        let redo = library.applyFilm(film, onto: ids)
+        let label = HistoryLabel.film(StockCatalog.shared.stock(film)?.shortName ?? film)
+        for (id, was) in before { recordStep(id, before: was, origin: .filmApply, label: label) }
+        return redo
+    }
+
+    /// A film applied to the open page (the Mac's Apply Film, whose act reached the frame the page
+    /// holds): one step of its history, the page moving with it. A pair's film is its shared look
+    /// (`changePair` holds it to the piece); a single frame takes the edit as it enters, as a
+    /// paste's does.
+    func applyFilm(_ film: String, to session: OpenFrameSession) {
+        guard session.pair == nil else {
+            changePair(session.frameID) { _, look in look = look.applied(film: film) }
+            return
+        }
+        guard let picture = session.frame?.originalSize else { return }
+        session.change { $0 = $0.applied(film: film).held(to: picture) }
+    }
+
     /// Single photos use the same pure leaf transfer as the clipboard. On a
     /// pair stocks/effects/Layer 2 belong to the piece; decode/exposure/print
     /// belong to the picked frame (film layer applies the shared look).

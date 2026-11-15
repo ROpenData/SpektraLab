@@ -452,6 +452,8 @@ extension DevelopWorkspace {
                 StockPreviewPanel(session: session, strip: stockStrip, compact: compact, crop: nil, rows: rows,
                                   decode: decodeSection, status: nil, foldable: true)
                     .frame(maxWidth: .infinity, alignment: .top)
+                // The window's one-act batch under the strips, while a selection holds.
+                StockApplyFilmFoot(session: session).frame(maxWidth: .infinity, alignment: .top)
             }
             .scrollIndicators(.hidden)
         } else if navigation.surface == .develop {

@@ -154,6 +154,7 @@ NOT_PAGES = {
     "Mac/History/MacHistoryPageCheck.swift": "a debug build's check of the edit history page: its step names go to its JSON report and the log",
     "Mac/Library/MacVariantCheck.swift": "a debug build's variants check (PRD-G): its step names go to its JSON report and the log",
     "Mac/Library/MacVariantActsCheck.swift": "a debug build's variants check, part 2 (PRD-G): its step names go to its JSON report and the log",
+    "Mac/LibraryUI/MacFilmApplyCheck.swift": "a debug build's Apply Film check: its step names go to its JSON report and the log",
     "Mac/Export/MacHDRChoiceCheck.swift": "a debug build's check that Enable HDR is remembered (2.4.0): its step names go to its JSON report and the log",
     "Mac/Settings/MacSettingsCoverage.swift": "a debug build's table of the Settings items and their sections: report text",
     "Mac/Library/CatalogSourcesStore.swift": "the Mac library's data: a collection's title is a key, shown through MacWords.title",
