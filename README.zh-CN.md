@@ -6,7 +6,7 @@
 
 ## ⬇ 下载
 
-**[下载 Spektra XD · Windows x64（最新版）](https://github.com/ROpenData/SpektraXD/releases/latest/download/SpektraXD-2.3.2-xd-win64.zip)**
+**[下载 Spektra XD · Windows x64（最新版）](https://github.com/ROpenData/SpektraXD/releases/latest/download/SpektraXD-2.4.0-xd-win64.zip)**
 · [全部版本列表](https://github.com/ROpenData/SpektraXD/releases)
 
 无需安装，三步即用：

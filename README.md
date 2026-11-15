@@ -9,7 +9,7 @@ filter pack, rendered on Vulkan with your NVIDIA or AMD GPU.
 
 ## ⬇ Download
 
-**[Download Spektra XD for Windows x64 (latest)](https://github.com/ROpenData/SpektraXD/releases/latest/download/SpektraXD-2.3.2-xd-win64.zip)**
+**[Download Spektra XD for Windows x64 (latest)](https://github.com/ROpenData/SpektraXD/releases/latest/download/SpektraXD-2.4.0-xd-win64.zip)**
 · [All releases](https://github.com/ROpenData/SpektraXD/releases)
 
 No installer. Three steps:
