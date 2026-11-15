@@ -222,7 +222,7 @@ final class MacLibraryActions {
                     : L("\(stock.shortName) applied onto \(count) pictures. The rest of their settings are their own.")
             },
             none: L("Every chosen picture is already on \(stock.shortName)."),
-            apply: { frames, _, stops in apply(film, named: stock.shortName, onto: frames, model: model, stops: stops) }
+            apply: { frames, _, stops in self.apply(film, named: stock.shortName, onto: frames, model: model, stops: stops) }
         ), onto: images, store: store, model: model)
     }
 
@@ -274,7 +274,7 @@ final class MacLibraryActions {
             refusal = line
             return
         }
-        act(Act(apply: { frames, _, stops in paste(clip, onto: frames, model: model, stops: stops) }),
+        act(Act(apply: { frames, _, stops in self.paste(clip, onto: frames, model: model, stops: stops) }),
             onto: images, store: store, model: model)
     }
 

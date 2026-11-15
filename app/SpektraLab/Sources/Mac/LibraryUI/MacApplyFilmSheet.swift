@@ -42,11 +42,12 @@ struct MacApplyFilmSheet: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Self.shelves, id: \.id) { shelf in
                         let films = catalog.films.filter(shelf.holds)
-                        guard !films.isEmpty else { continue }
-                        Text(shelf.title).font(Theme.Font.ui(12.5, .semibold)).foregroundStyle(Theme.secondaryText)
-                            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
-                        ForEach(films) { film in
-                            row(film)
+                        if !films.isEmpty {
+                            Text(shelf.title).font(Theme.Font.ui(12.5, .semibold)).foregroundStyle(Theme.secondaryText)
+                                .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
+                            ForEach(films) { film in
+                                row(film)
+                            }
                         }
                     }
                 }

@@ -347,13 +347,14 @@ final class MacHistoryPageModel {
         return (n == 1 ? L("1 step") : L("\(n) steps")) + Fmt.dot + Fmt.fileSize(Int64(listing.bytes))
     }
 
-    /// Where a step was made, as one word: 冲洗 for the develop page and its flows, 粘贴, 预设, 合成; nothing for a
+    /// Where a step was made, as one word: 冲洗 for the develop page and its flows, 粘贴, 预设, 应用胶片, 合成; nothing for a
     /// change made elsewhere (or a newer build's origin this one does not know).
     static func originWord(_ origin: HistoryOrigin) -> String {
         switch origin {
         case .develop, .flow: L("Develop")
         case .paste: L("Paste")
         case .preset: L("Preset")
+        case .filmApply: L("Apply Film")
         case .composite: L("Combine")
         case .elsewhere: ""
         }

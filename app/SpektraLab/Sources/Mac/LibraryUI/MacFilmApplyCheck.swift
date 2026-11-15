@@ -169,7 +169,8 @@ enum MacFilmApplyCheck {
 
             // 4. Undo on the Tri-X frame, with no page: the history page's way back (`goToStep`).
             let listing2 = await listing(model, frameIDs[1])
-            let undone = await listing2.map { model.goToStep(frameIDs[1], $0.cursorSeq - 1) } ?? false
+            var undone = false
+            if let listing2 { undone = await model.goToStep(frameIDs[1], listing2.cursorSeq - 1) }
             await settle()
             let back = library.frame(frameIDs[1])?.edit.params
             r.note("Undo on the Tri-X frame", ["undone": undone, "film": back?.filmStock ?? "-", "paper": back?.printStock ?? "-"])
@@ -215,8 +216,8 @@ enum MacFilmApplyCheck {
             // 7. The never-opened fourth, chosen alone: its frame is made with the film on it.
             actions.applyFilm("kodak_tri_x_400", onto: [neverOpened], store: store, model: model)
             await actions.pastesLanded()
-            let framed = await wait(30) { neverOpened.develop.flatMap { library.frame($0) } != nil }
-            let madeFilm = neverOpened.develop.flatMap { library.frame($0) }.map { $0.edit.params.filmStock }
+            let framed = await wait(30) { neverOpened.develop.flatMap { library.frame($0.frameID) } != nil }
+            let madeFilm = neverOpened.develop.flatMap { library.frame($0.frameID) }.map { $0.edit.params.filmStock }
             r.note("the never-opened fourth", ["framed": framed, "film": madeFilm ?? "-"])
             r.check(framed && madeFilm == "kodak_tri_x_400", "a frame is made for a picture never opened, with the film on it")
         } catch {

@@ -72,6 +72,7 @@
 				5B1B2B2ECB524BA8C71F3188 /* Sources */,
 				E941DA8187B32B086A8E8098 /* Frameworks */,
 				C5926192950FAB508AE8C163 /* Resources */,
+				97E082E473A3E14FF6A82F65 /* Engine resources */,
 			);
 			buildRules = (
 			);
@@ -459,6 +460,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 18.0;
+				"OTHER_LDFLAGS[sdk=macosx*]" = ("$(inherited)", "-lsqlite3", "$(PROJECT_DIR)/build/engine-macosx/libspektralab_engine.a", "-lc++", "-framework", Metal, "-framework", QuartzCore, "-framework", CoreText, "-framework", CoreGraphics, "-framework", Accelerate);
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=macosx*]" = "$(inherited) SPK_ENGINE";
 				"TARGETED_DEVICE_FAMILY[sdk=macosx*]" = 2;
 				ASSETCATALOG_COMPILER_APPICON_NAME = SpektraLab;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -1324,6 +1327,25 @@
 		9677F10793A93632B72A5794 /* LinkedFolderActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF364E3731ADE572F541F09B /* LinkedFolderActions.swift */; };
 		96C78593D0DD91BA3F3376A4 /* ExportEstimate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8210D00B93242389C0728A6 /* ExportEstimate.swift */; };
 		97CBADBD1860BF23EA347807 /* Buttons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDE665E7B3AE888C42ECC47 /* Buttons.swift */; };
+		97E082E473A3E14FF6A82F65 /* Engine resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Engine resources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "src=\"$PROJECT_DIR/build/engine-$PLATFORM_NAME/EngineResources\"\ndst=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/EngineResources\"\nif [ -d \"$src\" ]; then mkdir -p \"$dst\" && rsync -a --delete \"$src/\" \"$dst/\"; else rm -rf \"$dst\"; fi\nif [ \"$PLATFORM_NAME\" = macosx ]; then h=\"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers\"; mkdir -p \"$h\" && cp -f \"$PROJECT_DIR/../../vendor/spklib/macos/spklib-host\" \"$h/\" && codesign --force --options runtime --timestamp=none --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" \"$h/spklib-host\"; fi\n";
+		};
 		984B7FD368E89B25D9E896CF /* DoubleRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleRules.swift; sourceTree = "<group>"; };
 		985ADFC810E50E49E059720E /* ExportWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD11C356A2ED4B240AC7231 /* ExportWriter.swift */; };
 		98A1D449F0222960024348A2 /* Sheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53CC1B28785C9CABAF2F77C2 /* Sheets.swift */; };
@@ -1642,6 +1664,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 18.0;
+				"OTHER_LDFLAGS[sdk=macosx*]" = ("$(inherited)", "-lsqlite3", "$(PROJECT_DIR)/build/engine-macosx/libspektralab_engine.a", "-lc++", "-framework", Metal, "-framework", QuartzCore, "-framework", CoreText, "-framework", CoreGraphics, "-framework", Accelerate);
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=macosx*]" = "$(inherited) SPK_ENGINE";
 				"TARGETED_DEVICE_FAMILY[sdk=macosx*]" = 2;
 				ASSETCATALOG_COMPILER_APPICON_NAME = SpektraLab;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
