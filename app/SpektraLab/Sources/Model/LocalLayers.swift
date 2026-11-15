@@ -51,7 +51,10 @@ struct LocalLayers: Codable, Equatable, Sendable {
     /// A stage's layers, in the panel's order.
     func of(_ stage: LayerStage) -> [LocalLayer] { items.filter { $0.stage == stage } }
     /// Whether another layer of `stage` may be made (`perStage`).
-    func canAdd(_ stage: LayerStage) -> Bool { of(stage).count < Self.perStage }
+    func canAdd(_ stage: LayerStage) -> Bool { canAdd(stage, count: 1) }
+    /// Whether `count` layers of `stage` may be made at once (自动平衡 makes two): the panel's own
+    /// limit, asked of the several that would land together.
+    func canAdd(_ stage: LayerStage, count: Int) -> Bool { of(stage).count + count <= Self.perStage }
 
     /// The layers whose arithmetic can move a pixel of `stage`: on, opacity above 0, a delta that is not zero, and
     /// at least one part on. What the wire and the kernels are handed; with none the stage is today's, to the bit

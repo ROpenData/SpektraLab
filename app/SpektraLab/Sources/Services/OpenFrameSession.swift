@@ -1448,6 +1448,25 @@ final class OpenFrameSession {
         return layer.id
     }
 
+    /// **自动平衡**'s landing: several layers of one stage in **one** step, named as one act
+    /// (`SceneBalanceAct`) — what a person undoes as one thing. The same refusal as `makeLayer`'s,
+    /// for all of them at once. The last layer is picked.
+    @discardableResult
+    func makeLayers(_ layers: [LocalLayer], stage: LayerStage, label: HistoryLabel) -> Bool {
+        guard LayerRules.takesMasks(layerPiece) else { return false }
+        guard (edit.layers ?? LocalLayers()).canAdd(stage, count: layers.count) else {
+            maskNote = MaskRules.refusal(adding: stage, to: edit.layers)
+            return false
+        }
+        var made = layers
+        for i in made.indices {
+            made[i].madeOn = MaskMadeOn(lensCorrection: edit.decode.lensCorrection, lensWord: lensWord)
+        }
+        guard layerAct(label, { l in l.items.append(contentsOf: made) }) else { return false }
+        maskPick = made.last?.id
+        return true
+    }
+
     /// What 主体 · 背景 · 人 find on (`SubjectFinder`, RFC-052 §5): the frame's own file and the decode the edit asks of
     /// it, and a RAW's kept decode at the page's size where there is one (`RawProxy`; the finder reads it only where it
     /// is at least its rendition's size). Nil where the frame has nothing to read (an original that is away).

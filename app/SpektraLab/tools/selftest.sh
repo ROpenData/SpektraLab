@@ -76,6 +76,13 @@ swiftc -O -parse-as-library -o "$out/scheduler_selftest" \
 swiftc -O -parse-as-library -o "$out/latitude_selftest" \
   "$src/Model/Format.swift" "$src/Model/Localization.swift" "$src/Model/FilmParams.swift" "$src/Model/CurveMath.swift" "$src/Engine/SceneLatitude.swift" "$src/Engine/ScenePlacement.swift" \
   "$here/tools/latitude_selftest.swift" 2> "$out/latitude-selftest-build.log" || { grep -E "error" "$out/latitude-selftest-build.log" | head -30; exit 1; }
+# 场景自动平衡's own arithmetic (tools/scene_balance_selftest.swift): the split where the light
+# steps over six measured bands, each side pulled to sit inside the film's own window as a stop of
+# light on the film, Film Exposure's axis followed, the first pass clamped, and the flat and the
+# already-inside refused with their reasons — over made-up bands, sky-shaped and ground-shaped.
+swiftc -O -parse-as-library -o "$out/scene_balance_selftest" \
+  "$src/Model/Format.swift" "$src/Model/Localization.swift" "$src/Model/SceneBalance.swift" \
+  "$here/tools/scene_balance_selftest.swift" 2> "$out/scene-balance-selftest-build.log" || { grep -E "error" "$out/scene-balance-selftest-build.log" | head -30; exit 1; }
 swiftc -O -parse-as-library -o "$out/host_cut_selftest" \
   "$src/Model/Format.swift" "$src/Model/Localization.swift" "$src/Model/Geometry.swift" "$src/Engine/HostCut.swift" \
   "$here/tools/host_cut_selftest.swift" 2> "$out/host-cut-selftest-build.log" || { grep -E "error" "$out/host-cut-selftest-build.log" | head -30; exit 1; }
@@ -287,6 +294,7 @@ status=0
 "$out/slider_selftest" || status=1
 "$out/scheduler_selftest" "$@" || status=1
 "$out/latitude_selftest" "$@" || status=1
+"$out/scene_balance_selftest" "$@" || status=1
 "$out/host_cut_selftest" "$@" || status=1
 "$out/export_selftest" "$@" || status=1
 # The crop page's records, perspective, guides and Edit's crop of a file (2026-10-20).

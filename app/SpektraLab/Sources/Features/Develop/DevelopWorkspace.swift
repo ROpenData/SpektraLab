@@ -516,6 +516,8 @@ struct DevelopWorkspace: View {
             Divider()
             Button(L("Copy Settings")) { router.present(.copySettings(frame.id)) }
             Button(L("Presets")) { presets = true }
+            // 场景自动平衡 (`SceneBalanceAct`): the same item the Mac's ⋯ menu carries.
+            Button(L("Auto Balance Sky and Ground…")) { Task { await SceneBalanceAct.run(session: session, model: model) } }
             Divider()
             // The owner, on the host (2026-10-15): the Settings page was
             // reachable from the Library, and from the page
