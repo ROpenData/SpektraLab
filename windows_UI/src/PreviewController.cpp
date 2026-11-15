@@ -747,7 +747,12 @@ void PreviewController::balanceBrightness() {
         int done=0,limited=0;QStringList failed;
         try {
             // The reference is the active photo rendered at its desired
-            // settings — exactly what the user is looking at and likes.
+            // settings at the full tier — exactly what the user is looking
+            // at and likes. Recipients are opened fresh and iterated at the
+            // full tier as well, bypassing the session cache: upstream
+            // v2.4.0 carries cross-session print state between a live
+            // variant and a restored session, which would render the
+            // recipient in the reference's look. A fresh spk_open is immune.
             const auto active=host.current();
             const auto reference=(active&&active->source==shown->source&&active->decode_mode==shownMode)
                 ?host.render(base):host.open_raw(shown->source,shownMode,base);
@@ -757,25 +762,24 @@ void PreviewController::balanceBrightness() {
                 const auto source=path(target.url);
                 try {
                     auto settings=target.settings;
-                    // Only the brightness is measured here; the live tier
-                    // skips the full-resolution render of every recipient.
-                    const auto frame=host.open_raw(source,target.mode,settings,"live");
+                    const auto frame=host.open_raw(source,target.mode,settings,"full",false);
                     double luma=medianLuma(imageFromFrame(frame));
-                    // Print-only reprints reuse the cached negative, so each
-                    // live-tier iteration costs little; the loop absorbs the
-                    // paper curve's nonlinearity.
                     double delta=0;
-                    for(int iteration=0;iteration<3;++iteration) {
+                    // The paper curve's response to print exposure is not
+                    // linear in luma; each iteration multiplies the measured
+                    // ratio toward 1. Full-tier reprints (~230 ms each)
+                    // absorb even a slow curve within eight rounds.
+                    for(int iteration=0;iteration<8;++iteration) {
                         delta=std::log2(std::max(1e-9,referenceLuma)/std::max(1e-9,luma));
                         if(std::abs(delta)<0.05)break;
                         auto next=settings;
                         next.print_exposure=std::exp2(-std::clamp(-std::log2(settings.print_exposure)+delta,-2.0,2.0));
                         if(next==settings)break;
                         settings=std::move(next);
-                        luma=medianLuma(imageFromFrame(host.render_variant(settings)));
+                        luma=medianLuma(imageFromFrame(host.render(settings)));
                     }
                     if(std::abs(delta)>=0.05)++limited;  // clamped at the slider range or not yet converged
-                    const auto finalFrame=host.render_variant(settings);
+                    const auto finalFrame=host.render(settings);
                     const auto thumbnail=imageFromFrame(finalFrame)
                         .scaled(180,120,Qt::KeepAspectRatio,Qt::SmoothTransformation);
                     const double exposure=settings.print_exposure;

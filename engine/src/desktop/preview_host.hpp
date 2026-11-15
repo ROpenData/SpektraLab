@@ -114,7 +114,8 @@ public:
     // The optional tier selects the render resolution ("full" by default,
     // "live" ~1600 px long edge for background thumbnails).
     FramePtr open_raw(const std::filesystem::path& source, DecodeMode mode,
-                      const RenderSettings& settings = {}, const char* tier = "full");
+                      const RenderSettings& settings = {}, const char* tier = "full",
+                      bool use_cache = true);
     // Only changed settings are sent. Print-side edits request spk_reprint;
     // the result's actual cache flag determines whether reuse occurred.
     // A failure never mutates the previously returned Frame.

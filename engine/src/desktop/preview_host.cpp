@@ -260,7 +260,7 @@ double PreviewHost::engine_create_ms() const noexcept { return impl_->engine_cre
 FramePtr PreviewHost::current() const noexcept { return impl_->frame; }
 
 FramePtr PreviewHost::open_raw(const fs::path& source, DecodeMode mode, const RenderSettings& settings,
-                               const char* tier) {
+                               const char* tier, bool use_cache) {
     const auto started = Clock::now();
     const bool scan_film = validate_settings(settings, impl_->catalog);
     require(mode == DecodeMode::compatible16 || mode == DecodeMode::headroom, "Unknown RAW decode mode");
@@ -280,7 +280,8 @@ FramePtr PreviewHost::open_raw(const fs::path& source, DecodeMode mode, const Re
     std::shared_ptr<const io::DecodedRaw> decoded;
     SessionPtr session{nullptr, &spk_session_release};
     std::optional<RenderSettings> cached_settings;
-    for (auto entry = impl_->session_cache.begin(); entry != impl_->session_cache.end(); ++entry) {
+    for (auto entry = use_cache ? impl_->session_cache.begin() : impl_->session_cache.end();
+         entry != impl_->session_cache.end(); ++entry) {
         if (entry->source == path && entry->mode == mode) {
             decoded = entry->decoded;
             cached_settings = entry->session_settings;
@@ -333,7 +334,7 @@ FramePtr PreviewHost::open_raw(const fs::path& source, DecodeMode mode, const Re
     // Commit only after all allocations and GPU/CPU work succeeded. The
     // outgoing session is retained for a fast switch back, unless this open
     // replaced the same photo and mode in place.
-    if (impl_->session && impl_->frame && impl_->session_cache_capacity > 0 &&
+    if (use_cache && impl_->session && impl_->frame && impl_->session_cache_capacity > 0 &&
         !(impl_->frame->source == path && impl_->frame->decode_mode == mode)) {
         impl_->session_cache.push_front({impl_->frame->source, impl_->frame->decode_mode,
                                          std::move(impl_->session), impl_->session_settings,
