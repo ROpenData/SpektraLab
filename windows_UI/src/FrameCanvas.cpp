@@ -12,8 +12,23 @@ FrameCanvas::FrameCanvas(QQuickItem* parent):QQuickItem(parent) {
 }
 void FrameCanvas::setImage(const QImage& image) {
     if(image.cacheKey()==image_.cacheKey())return;
-    const bool changedSize=image.size()!=image_.size();image_=image;++revision_;
-    if(changedSize)pan_={};clampPan();update();emit imageChanged();emit viewChanged();
+    const bool changedSize=image.size()!=image_.size();
+    if(changedSize&&!fit_&&!image_.isNull()&&!image.isNull()) {
+        // Same picture, different render tier (live preview <-> full
+        // resolution): rescale the zoom about the view centre so the on-
+        // screen size stays constant instead of flashing smaller/larger.
+        // A different aspect is a different picture: just re-centre it.
+        const double aspect=double(image.width())/qMax(1,image.height());
+        const double aspectOld=double(image_.width())/qMax(1,image_.height());
+        if(std::abs(aspect-aspectOld)<1e-6) {
+            const double k=double(image_.width())/qMax(1,image.width());
+            zoom_=std::clamp(zoom_*k,0.02,8.0);
+            pan_*=k;
+        } else pan_={};
+    }
+    image_=image;++revision_;
+    if(changedSize)clampPan();
+    update();emit imageChanged();emit viewChanged();
 }
 void FrameCanvas::setFit(bool value) {if(value==fit_)return;fit_=value;pan_={};if(!fit_)zoom_=1.0;update();emit viewChanged();}
 void FrameCanvas::resetView(bool value) {fit_=value;pan_={};if(!fit_)zoom_=1.0;update();emit viewChanged();}
@@ -71,16 +86,16 @@ void FrameCanvas::mouseMoveEvent(QMouseEvent* e) {if(dragging_){const auto delta
 void FrameCanvas::mouseReleaseEvent(QMouseEvent* e) {dragging_=false;e->accept();}
 void FrameCanvas::mouseUngrabEvent(){dragging_=false;}
 void FrameCanvas::mouseDoubleClickEvent(QMouseEvent* e){resetView(!fit_);e->accept();}
-// Continuous wheel zoom anchored at the cursor. The lower bound is the fit
-// scale (zooming out never shows empty margins), the upper bound 800%.
-// Double-click keeps its exact meaning: fit <-> physical 100 percent.
+// Continuous wheel zoom anchored at the cursor, 2%..800%. Zooming out past
+// the fit scale is allowed and shows margins around the photo (the view
+// stays centred via clampPan). Double-click keeps its exact meaning:
+// fit <-> physical 100 percent.
 void FrameCanvas::wheelEvent(QWheelEvent* e) {
     if(image_.isNull()||width()<=0||height()<=0){e->ignore();return;}
-    const double fitScale=std::min(width()*dpr()/image_.width(),height()*dpr()/image_.height());
     const double current=scale();
     const double notches=std::clamp(std::round(std::abs(e->angleDelta().y())/120.0),1.0,3.0)
         *(e->angleDelta().y()>0?1.0:-1.0);
-    const double next=std::clamp(current*std::pow(1.25,notches),std::min(fitScale,1.0),8.0);
+    const double next=std::clamp(current*std::pow(1.25,notches),0.02,8.0);
     if(std::abs(next-current)<1e-12){e->accept();return;}
     // Keep the image point under the cursor at the cursor: scale the current
     // rect about the cursor, then express the origin as a pan offset.
