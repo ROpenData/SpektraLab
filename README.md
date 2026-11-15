@@ -69,10 +69,12 @@ Validated toolchain: MinGW GCC 15.2 (WinLibs UCRT), CMake 3.25+, a Vulkan SDK (f
 .\windows_UI\build.ps1 -SourceDirectory . -BuildDirectory .\build\qt -DependencyDirectory ..\deps -Jobs 8
 ```
 
+
 `build\qt\app\SpektraLabQt.exe` is self-contained — keep the whole `app` folder together (DLLs,
 QML plugins, `resources`, `licenses`). Tests: `ctest --test-dir build\windows` (16) and
 `ctest --test-dir build\qt` (18), plus fixture-driven workflow tests under `windows_UI\tests`.
 Details: `engine/WINDOWS.md`, `engine/WINDOWS_DESKTOP.md`, `windows_UI/README.md`.
+
 
 ## Credits and licence
 
