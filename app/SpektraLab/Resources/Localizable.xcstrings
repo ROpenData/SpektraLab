@@ -4841,24 +4841,24 @@
         }
       }
     },
-    "Balanced: the sky %@ stops, the ground %@ stops, as two layers to tune." : {
+    "Balanced: the sky %@ stops, the ground %@ stops, as layers to tune." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "バランスしました：空 %@ 段、地面 %@ 段。2つのレイヤーで調整できます。"
+            "value" : "バランスしました：空 %@ 段、地面 %@ 段。レイヤーで調整できます。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已平衡：天空 %@ 档、地面 %@ 档，两个图层可继续调整。"
+            "value" : "已平衡：天空 %@ 档、地面 %@ 档，图层可继续调整。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已平衡：天空 %@ 檔、地面 %@ 檔，兩個圖層可繼續調整。"
+            "value" : "已平衡：天空 %@ 檔、地面 %@ 檔，圖層可繼續調整。"
           }
         }
       }

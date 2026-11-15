@@ -46,23 +46,37 @@ enum SceneBalanceAct {
             bands.append(SceneBalance.Band(s.p1, s.p50, s.p99))
             medium = SceneBalance.Medium(shadowEV: reply.medium.shadowEV, highlightEV: reply.medium.highlightEV)
             exposureEV = s.histogram.exposureEV ?? 0
+            #if DEBUG
+            NSLog("[balance] band %d p1 %.3f p50 %.3f p99 %.3f samples %.0f exposureEV %.3f medium %.3f…%.3f",
+                  i, s.p1, s.p50, s.p99, s.samples, s.histogram.exposureEV ?? 0, reply.medium.shadowEV, reply.medium.highlightEV)
+            #endif
         }
         guard let medium else { return }
         switch SceneBalance.solve(bands: bands, medium: medium, exposureEV: exposureEV) {
         case .refused(let line):
             session.maskNote = line
         case .balanced(let answer):
-            var sky = LocalLayer(name: Self.freeName(L("Sky"), among: session.edit.layers), stage: .scene,
-                                 parts: [.linear(MaskLinear(a: MaskPoint(0, 0), b: MaskPoint(0, answer.split)))])
-            sky.scene?.exposure = answer.skyEV
-            var ground = LocalLayer(name: Self.freeName(L("Ground"), among: session.edit.layers), stage: .scene,
-                                    parts: [.linear(MaskLinear(a: MaskPoint(0, 1), b: MaskPoint(0, answer.split)))])
-            ground.scene?.exposure = answer.groundEV
-            // A soft seam where the gradients meet: the split is a sixth of the picture wide at
-            // most, and a hard one would draw a line the eye then cannot unsee.
-            sky.feather = 0.04; ground.feather = 0.04
-            guard session.makeLayers([sky, ground], stage: .scene, label: HistoryLabel("Auto Balance")) else { return }
-            session.maskNote = L("Balanced: the sky \(Fmt.signed(answer.skyEV)) stops, the ground \(Fmt.signed(answer.groundEV)) stops, as two layers to tune.")
+            // Only the side that moves makes a layer: a side already inside the film's window
+            // needs none, and an empty layer beside the working one is clutter, not a start.
+            var layers: [LocalLayer] = []
+            if answer.skyEV < 0 {
+                var sky = LocalLayer(name: Self.freeName(L("Sky"), among: session.edit.layers), stage: .scene,
+                                     parts: [.linear(MaskLinear(a: MaskPoint(0, 0), b: MaskPoint(0, answer.split)))])
+                sky.scene?.exposure = answer.skyEV
+                // A soft seam where the gradients meet: the split is a sixth of the picture wide
+                // at most, and a hard one would draw a line the eye then cannot unsee.
+                sky.feather = 0.04
+                layers.append(sky)
+            }
+            if answer.groundEV > 0 {
+                var ground = LocalLayer(name: Self.freeName(L("Ground"), among: session.edit.layers), stage: .scene,
+                                        parts: [.linear(MaskLinear(a: MaskPoint(0, 1), b: MaskPoint(0, answer.split)))])
+                ground.scene?.exposure = answer.groundEV
+                ground.feather = 0.04
+                layers.append(ground)
+            }
+            guard session.makeLayers(layers, stage: .scene, label: HistoryLabel("Auto Balance")) else { return }
+            session.maskNote = L("Balanced: the sky \(Fmt.signed(answer.skyEV)) stops, the ground \(Fmt.signed(answer.groundEV)) stops, as layers to tune.")
         }
     }
 
