@@ -31,6 +31,8 @@ enum MacLibraryCheck {
         MacClipboardCheck.startIfAsked(model: model, arguments: arguments)
         // `--film-apply-check` (Sources/Mac/LibraryUI): Apply Film over a selection, from the same hook.
         MacFilmApplyCheck.startIfAsked(model: model, arguments: arguments)
+        // `--balance-smoke` (Features/Layers): 场景自动平衡 end to end, from the same hook.
+        SceneBalanceSmoke.startIfAsked(model: model, arguments: arguments)
         // `--variant-check` (PRD-G, 2026-11-13): a variant is a frame of its own, from the same hook.
         MacVariantCheck.startIfAsked(model: model, arguments: arguments)
         MacVariantActsCheck.startIfAsked(model: model, arguments: arguments)

@@ -150,6 +150,7 @@ NOT_PAGES = {
     "Mac/LightTable/MacLightTableCheck.swift": "a debug build's Light Table check: its step names go to its JSON report and the log",
     "Mac/Settings/MacSettingsCheck.swift": "a debug build's Settings check: its step names go to its JSON report and the log",
     "Mac/LibraryUI/MacClipboardCheck.swift": "a debug build's Copy and Paste Settings check: its step names go to its JSON report and the log",
+    "Features/Layers/SceneBalanceSmoke.swift": "a debug build's 场景自动平衡 smoke: its step names go to its JSON report and the log",
     "Mac/History/MacHistoryCheck.swift": "a debug build's edit history check: its step names go to its JSON report and the log",
     "Mac/History/MacHistoryPageCheck.swift": "a debug build's check of the edit history page: its step names go to its JSON report and the log",
     "Mac/Library/MacVariantCheck.swift": "a debug build's variants check (PRD-G): its step names go to its JSON report and the log",

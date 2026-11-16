@@ -53,6 +53,9 @@ struct MacDevelopBar {
     var compare: () -> Void, toggleOriginal: () -> Void
     /// Space, down, repeated or up: the original (`DevelopWorkspace.spaceOriginal`). True where the page took it.
     var space: (KeyPress.Phases) -> Bool
+    /// 场景自动平衡 (`SceneBalanceAct`): the sky and the ground measured and pulled inside the film's
+    /// window, as two layers of one step of Undo.
+    var balance: () -> Void
     var export: () -> Void
     /// Another frame on this page (`switchFrame`): what a browser row asks for in 冲洗/编辑.
     var open: (LibraryFrame.ID) -> Void
@@ -568,6 +571,10 @@ struct MacDevelopActions: View {
                 Divider()
                 Button(L("Copy Settings"), action: bar.copySettings)
                 Button(L("Presets"), action: bar.presets)
+                // 场景自动平衡 (`SceneBalanceAct`): measured and landed as two layers of one step. The
+                // host's `DevelopWorkspace.moreMenu` carries the same item.
+                Button(L("Auto Balance Sky and Ground…"), action: bar.balance)
+                    .accessibilityIdentifier("mac.develop.balance")
                 Divider()
                 // The space the canvas shows its picture in (`CanvasGamut`, 2.2.1): a proof, never an edit. This is
                 // the Mac's menu; the host's `DevelopWorkspace.moreMenu` has the same picker.

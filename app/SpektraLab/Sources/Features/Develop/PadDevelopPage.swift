@@ -317,6 +317,7 @@ extension DevelopWorkspace {
             compare: { original = false; comparing.toggle() },
             toggleOriginal: { comparing = false; original.toggle() },
             space: { spaceOriginal($0) },
+            balance: { Task { await SceneBalanceAct.run(session: session, model: model) } },
             export: {
                 // An unfilled pair or double alone: Export answers with why, and the way to fill it (R10; the
                 // owner's decision 7), where it used to open a sheet whose only outcome was "not saved".

@@ -4731,6 +4731,72 @@
         }
       }
     },
+    "Auto Balance" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動バランス"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动平衡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動平衡"
+          }
+        }
+      }
+    },
+    "Auto Balance Sky and Ground…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空と地面を自動バランス…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动平衡天空与地面…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動平衡天空與地面…"
+          }
+        }
+      }
+    },
+    "Auto Balance needs the photograph developed first." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動バランスには、まずこの写真を現像する必要があります。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动平衡需要先冲洗这张照片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動平衡需要先沖洗這張照片。"
+          }
+        }
+      }
+    },
     "Auto · %@" : {
       "localizations" : {
         "ja" : {
@@ -4969,6 +5035,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "平衡 →"
+          }
+        }
+      }
+    },
+    "Balanced: the sky %@ stops, the ground %@ stops, as layers to tune." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "バランスしました：空 %@ 段、地面 %@ 段。レイヤーで調整できます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已平衡：天空 %@ 档、地面 %@ 档，图层可继续调整。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已平衡：天空 %@ 檔、地面 %@ 檔，圖層可繼續調整。"
           }
         }
       }
@@ -5255,6 +5343,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "兩格同在一條 135 底片上，相隔一公釐，正如半格相機拍下的那樣。"
+          }
+        }
+      }
+    },
+    "Both sides already sit inside the film’s window; there is nothing to pull back." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "両側ともすでにフィルムのラチチュード内にあり、引き戻す必要はありません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下两侧都已在胶片的宽容度内，无需拉回。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下兩側都已在底片的寬容度內，無需拉回。"
           }
         }
       }
@@ -13373,6 +13483,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "格線"
+          }
+        }
+      }
+    },
+    "Ground" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地面"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地面"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地面"
           }
         }
       }
@@ -25675,6 +25807,28 @@
         }
       }
     },
+    "Sky" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天空"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天空"
+          }
+        }
+      }
+    },
     "Smaller Brush" : {
       "localizations" : {
         "ja" : {
@@ -28733,6 +28887,28 @@
         }
       }
     },
+    "The photograph has not been measured yet." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この写真はまだ測定されていません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片还没有被测量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這張照片還沒有被測量。"
+          }
+        }
+      }
+    },
     "The photograph’s original is not here to find in." : {
       "localizations" : {
         "ja" : {
@@ -29125,6 +29301,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打勾的配方是輸出時預設使用的配方。選取一個配方即可修改、重新命名或刪除它。"
+          }
+        }
+      }
+    },
+    "The top and the bottom of this photograph are close in light; there is nothing to balance." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この写真は上下の明るさが近く、バランスの必要がありません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片上下明暗相近，无需平衡。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這張照片上下明暗相近，無需平衡。"
           }
         }
       }
