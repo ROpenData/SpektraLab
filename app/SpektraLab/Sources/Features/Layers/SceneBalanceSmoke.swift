@@ -1,7 +1,7 @@
 //  SceneBalanceSmoke.swift — a debug build's proof of 场景自动平衡 end to end, in the running app.
 //
 //      CFFIXED_USER_HOME=<scratch>/home SpektraLab --balance-smoke <dir> \
-//          --balance-smoke-files <bright-sky.jpg> <even.jpg> [--library-check-exit]
+//          --balance-smoke-files <bright-sky.jpg> <even.jpg> <figure.jpg> [--library-check-exit]
 //
 //  The model's own arithmetic is `tools/scene_balance_selftest.swift`'s; this drives the act whole:
 //  a scratch catalog of the files, the first opened in 冲洗, 自动平衡 run from the page's own act
@@ -11,7 +11,13 @@
 //     (天空 1, 地面 1), two linear gradients meeting at the measured split, the sky's 曝光 at or
 //     below 0 and the ground's at or above 0, one Undo takes both back, and the film develops again
 //     of the corrected light;
-//  2. an even photograph is refused with its line, and no layer lands.
+//  2. an even photograph is refused with its line, and no layer lands;
+//  3. a photograph with a figure standing in its sky: the sky's mask is what the finder and the
+//     threshold together say — 识别塑形 re-derived here from the same finder result the act used
+//     (the subject's coverage of the bands above the split, `SceneBalance.shapesSky`), the sky
+//     layer carrying the 背景-intersect part beside its gradient when it shapes and the plain
+//     gradient when it does not — either way a mask the finder's own word justifies, never a guess
+//     about what Vision makes of a made-up rectangle.
 //
 //  Not in a release build.
 
@@ -65,7 +71,7 @@ enum SceneBalanceSmoke {
     private static func run(_ model: AppServices, _ r: Report, out: URL, files: [URL]) async {
         let store = model.macLibrary
         let fm = FileManager.default
-        guard files.count == 2 else { r.check(false, "two files: the bright-sky one and the even one (\(files.count))"); return }
+        guard files.count == 3 else { r.check(false, "three files: the bright-sky one, the even one, the figure one (\(files.count))"); return }
         await store.start()
         do {
             let work = out.appending(path: "work")
@@ -76,11 +82,11 @@ enum SceneBalanceSmoke {
             for (u, n) in zip(files, names) { try fm.copyItem(at: u, to: card.appending(path: n)) }
             let cat = try await store.newCatalog(named: "Balance", in: work)
             try await store.addFolder(card, to: cat.id)
-            _ = await wait(60) { store.images.count == 2 }
+            _ = await wait(60) { store.images.count == 3 }
             await store.select(collection: store.tree.defaultSelection)
             let rows = names.compactMap { n in store.images.first { $0.fileName == n } }
             r.note("catalog", ["rows": rows.map(\.fileName)])
-            guard rows.count == 2 else { return }
+            guard rows.count == 3 else { return }
 
             // 1. The bright-sky photograph, opened in 冲洗, balanced from the page's own act.
             try await store.openInDevelop([rows[0].id], focus: rows[0].id)
@@ -120,6 +126,47 @@ enum SceneBalanceSmoke {
             r.note("even", ["note": session2.maskNote ?? "-", "layers": session2.edit.layers?.items.count ?? 0])
             r.check((session2.edit.layers?.items.isEmpty ?? true) && session2.maskNote != nil,
                     "an even photograph is refused with its line and no layer lands")
+
+            // 3. A figure standing in the sky: the sky's mask is what the finder and the threshold
+            //    together say. The expectation is re-derived here from the finder's own memo (the
+            //    act's find answered it already) over the layer's own gradient split — this holds
+            //    the WIRING (the act asked, measured the coverage, and shaped accordingly); the
+            //    rule itself is the model selftest's, not this copy's.
+            try await store.openInDevelop([rows[2].id], focus: rows[2].id)
+            let third = await wait(30) { MacShellBar.shared.develop?.frameID != session2.frameID }
+            guard third, let bar3 = MacShellBar.shared.develop, let session3 = model.openSession(bar3.frameID) else {
+                r.check(false, "the figure photograph opens in 冲洗"); return
+            }
+            await wait(60) { !model.darkroom.needsDevelop(model.library.frame(session3.frameID)!) }
+            await SceneBalanceAct.run(session: session3, model: model)
+            await wait(20) { !(session3.edit.layers?.items.isEmpty ?? true) }
+            let figureLayers = session3.edit.layers?.items ?? []
+            let skyLayer = figureLayers.first { ($0.scene?.exposure ?? 0) < 0 }
+            let split = skyLayer?.parts.first?.linear?.b.y
+            var share = -1.0
+            var expected = false
+            if let split, let source = session3.findSource,
+               let found = (try? await MaskFinding.shared.finder.subject(source)) ?? nil {
+                let picture = found.picture
+                let rowsAbove = min(max(Int((split * Double(picture.height)).rounded()), 1), picture.height)
+                var on = 0
+                for y in 0..<rowsAbove {
+                    let row = y * picture.width
+                    for x in 0..<picture.width where picture.bytes[row + x] >= 128 { on += 1 }
+                }
+                share = Double(on) / Double(rowsAbove * picture.width)
+                expected = SceneBalance.shapesSky(subjectAbove: share)
+            }
+            let shaped = (skyLayer?.parts.count ?? 0) > 1
+            r.note("figure", ["layers": figureLayers.map(\.name), "sky_parts": skyLayer?.parts.count ?? 0,
+                              "subject_above": share, "expected_shaped": expected, "note": session3.maskNote ?? "-"])
+            r.check(skyLayer != nil, "the figure photograph's sky takes a layer")
+            r.check(shaped == expected,
+                    "the sky's mask carries the 背景-intersect part exactly when the subject reaches into it (share \(share))")
+            if shaped, let part = skyLayer?.parts.last {
+                r.check(part.kind == .found && part.join == .intersect && part.found?.invert == true,
+                        "the shaping part is 背景, joined by intersect")
+            }
         } catch {
             r.check(false, "the smoke threw: \(error.localizedDescription)")
         }

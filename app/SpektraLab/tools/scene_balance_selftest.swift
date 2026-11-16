@@ -44,6 +44,8 @@ enum Broken: CaseIterable {
     case noClamp
     /// Film Exposure's axis ignored.
     case noExposureAxis
+    /// The shaping threshold gone: any subject texel above the split reshapes the sky.
+    case noShape
 }
 
 func solve(_ bands: [SceneBalance.Band], shadowEV: Double, highlightEV: Double, exposureEV: Double, broken: Broken = .none) -> SceneBalance.Solved {
@@ -55,6 +57,10 @@ func solve(_ bands: [SceneBalance.Band], shadowEV: Double, highlightEV: Double, 
     if broken == .noExposureAxis { exposure = 0 }
     return SceneBalance.solve(bands: bands, medium: .init(shadowEV: shadowEV, highlightEV: highlightEV),
                               exposureEV: exposure, margin: margin, gap: gap, clamp: clamp)
+}
+
+func shapesSky(_ subjectAbove: Double, broken: Broken) -> Bool {
+    SceneBalance.shapesSky(subjectAbove: subjectAbove, threshold: broken == .noShape ? 0 : SceneBalance.skyShape)
 }
 
 func checks(_ c: inout Checker, _ broken: Broken) {
@@ -118,6 +124,15 @@ func checks(_ c: inout Checker, _ broken: Broken) {
     } else if case .balanced(let n) = nothing {
         c.expect(false, "both sides inside the window make no layers (sky \(n.skyEV), ground \(n.groundEV))")
     }
+
+    // 识别塑形 (v2): a subject that reaches into the sky reshapes the sky's gradient as 背景 ∩ —
+    // a head against a bright sky is not dimmed with the sky it stands against. A share of the
+    // bands above the split at the threshold or above shapes; under it (a stray detection, not a
+    // subject) the plain gradient is the better mask, and none of one is none at all.
+    c.expect(shapesSky(0.05, broken: broken), "a subject 5 % of the sky's bands shapes the sky's mask")
+    c.expect(shapesSky(SceneBalance.skyShape, broken: broken), "the threshold itself shapes (>=, not >)")
+    c.expect(!shapesSky(SceneBalance.skyShape - 0.001, broken: broken), "just under the threshold does not")
+    c.expect(!shapesSky(0, broken: broken), "no subject above the split does not")
 }
 
 @main

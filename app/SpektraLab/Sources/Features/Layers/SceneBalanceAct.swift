@@ -61,7 +61,8 @@ enum SceneBalanceAct {
             var layers: [LocalLayer] = []
             if answer.skyEV < 0 {
                 var sky = LocalLayer(name: Self.freeName(L("Sky"), among: session.edit.layers), stage: .scene,
-                                     parts: [.linear(MaskLinear(a: MaskPoint(0, 0), b: MaskPoint(0, answer.split)))])
+                                     parts: [.linear(MaskLinear(a: MaskPoint(0, 0), b: MaskPoint(0, answer.split)))]
+                                         + (await Self.skyShapeParts(answer: answer, session: session)))
                 sky.scene?.exposure = answer.skyEV
                 // A soft seam where the gradients meet: the split is a sixth of the picture wide
                 // at most, and a hard one would draw a line the eye then cannot unsee.
@@ -78,6 +79,40 @@ enum SceneBalanceAct {
             guard session.makeLayers(layers, stage: .scene, label: HistoryLabel("Auto Balance")) else { return }
             session.maskNote = L("Balanced: the sky \(Fmt.signed(answer.skyEV)) stops, the ground \(Fmt.signed(answer.groundEV)) stops, as layers to tune.")
         }
+    }
+
+    /// 识别塑形 (v2): the parts that take the found subject out of the sky's pull — the gradient
+    /// ∩ 背景, where the found subject reaches into the bands above the split (a head against a
+    /// bright sky is not dimmed with the sky it stands against). None where it does not (the
+    /// finder's word is not asked for its own sake: a stray detection under `SceneBalance.skyShape`
+    /// buys an intersect that changes nothing, and a finder that is away or finds nothing leaves
+    /// the gradient alone — the measurement's mask is still a mask).
+    ///
+    /// The share is the found subject's coverage of the rows above the split, the finder's own
+    /// in-subject reading of a texel (`box`'s ≥ 128 of 255) over its rendition's own pixels, at
+    /// most 2048 of the long edge: some milliseconds of arithmetic, beside the find's own
+    /// 0.1–0.5 s warm.
+    private static func skyShapeParts(answer: SceneBalance.Answer, session: OpenFrameSession) async -> [MaskPart] {
+        guard let source = session.findSource else { return [] }
+        let finder = MaskFinding.shared.finder
+        let found: FoundResult?
+        do { found = try await finder.subject(source) } catch { return [] }
+        guard let found else { return [] }
+        let picture = found.picture
+        let rows = min(max(Int((answer.split * Double(picture.height)).rounded()), 1), picture.height)
+        var on = 0
+        for y in 0..<rows {
+            let row = y * picture.width
+            for x in 0..<picture.width where picture.bytes[row + x] >= 128 { on += 1 }
+        }
+        let share = Double(on) / Double(rows * picture.width)
+        #if DEBUG
+        NSLog("[balance] the subject covers %.1f%% of the bands above the split", share * 100)
+        #endif
+        guard SceneBalance.shapesSky(subjectAbove: share) else { return [] }
+        let part: MaskPart
+        do { part = try await finder.part(found, background: true, join: .intersect) } catch { return [] }
+        return [part]
     }
 
     /// 天空 n with the smallest number no layer is called by (`MaskRules.name`'s rule, for a word of

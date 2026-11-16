@@ -72,6 +72,19 @@ enum SceneBalance {
     /// The most the act asks of a side (the slider's own limit is 4): the measured whole, held to a
     /// first pass nobody has to undo.
     static let clamp = 3.0
+    /// 识别塑形's least subject (v2): the share of the bands above the split the found subject must
+    /// cover before the sky's gradient is reshaped as 背景 ∩. A head and shoulders against the sky
+    /// is a few per cent of the sky's own area; a stray detection is less, and an intersect that
+    /// changes almost nothing is a part on the page for nothing.
+    static let skyShape = 0.02
+
+    /// Whether the sky's mask is the gradient alone or the gradient ∩ 背景: the found subject,
+    /// reaching into the bands above the split, is taken out of the sky's pull — a head against a
+    /// bright sky is not dimmed with the sky it stands against. `subjectAbove` is the share of the
+    /// bands above the split the subject's found mask covers.
+    static func shapesSky(subjectAbove: Double, threshold: Double = skyShape) -> Bool {
+        subjectAbove >= threshold
+    }
 
     /// The bands' answer. `bands` are the scene top to bottom; fewer than two is nothing to split.
     static func solve(bands: [Band], medium: Medium, exposureEV: Double,
