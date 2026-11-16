@@ -52,6 +52,7 @@ import hashlib
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -159,6 +160,16 @@ def main() -> None:
                          "tools/harden.sh")
     args = ap.parse_args()
     logs_url, logs_key = logs_endpoint()
+    # A small upgrade's own number (the owner, 2026-11-15: "每一个小升级后面放一个小版本号，不然桌面
+    # 上有两个同款程序不知道哪个最新"). On the default branch nothing changes -- the release's version is
+    # MARKETING_VERSION's alone (AGENTS.md) and the app's name stays the trademark's (2026-10-22,
+    # tools/app_name_check.py). On a branch of its own the build becomes the date and the minute,
+    # numeric and increasing, so which of two builds is the later one reads at a glance in 设置 ›
+    # 通用's 版本 row.
+    branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=HERE,
+                            capture_output=True, text=True).stdout.strip() or "main"
+    if args.build == "1" and branch not in ("main", "master", "HEAD"):
+        args.build = time.strftime("%y%m%d.%H%M")
     # The engine, where `tools/build_engine_mac.sh` has left one (`build/engine-macosx`).
     def engine_built() -> bool:
         base = HERE / "build" / "engine-macosx"

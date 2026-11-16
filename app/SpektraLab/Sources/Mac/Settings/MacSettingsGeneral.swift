@@ -89,6 +89,12 @@ struct MacSettingsGeneral: View {
 
     private var updates: some View {
         MacSettingsGroup(title: L("Updates")) {
+            // The version and its build in one line (the owner, 2026-11-15: with a small number on
+            // every small upgrade, two builds side by side are never a guess). A branch build's
+            // number is the date and the minute (`gen_project.py`), so the later build reads at a
+            // glance; a release's is its own.
+            MacSettingsValueRow(label: L("Version"), value: "\(UpdateCheck.runningVersion) (\(UpdateCheck.runningBuild))")
+                .macSettingsItem("Updates", "Version")
             MacSettingsRow(label: L("Check for updates automatically"),
                            caption: L("Once, a few seconds after SpektraLab opens. Only the address of the latest release is asked for: nothing about you, your Mac or your pictures is sent.")) {
                 MacSettingsCheckbox(label: L("Check for updates automatically"),
