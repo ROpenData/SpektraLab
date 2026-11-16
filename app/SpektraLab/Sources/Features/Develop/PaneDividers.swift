@@ -2,8 +2,10 @@
 //
 //  The owner's redesign of the develop page is "for mac and window": the column's header has one Crop where
 //  the Library and Share were ("we don't need fast sharing"). The crop is made in the page, not on a page that pops up (`InlineCrop`), and the column and the
-//  filmstrip are as wide and as tall as they are dragged (`PaneDividers`, `DividerGrip`), from today's
-//  sizes up: "the current width should be the narrowest width".
+//  filmstrip are as wide and as tall as they are dragged (`PaneDividers`, `DividerGrip`). The width's floor
+//  was "today's" (2026-10-24); the owner narrowed it (2026-11-16: "the bar on the left is too wide, and the
+//  emulations will not fit when I resize") — the column now goes down to 300 scene points, and the strips'
+//  cards narrow with it that three are always seen (`StockPreviewRules.cardWidth`).
 //  Marked in place as "Mac change ".
 
 import SwiftUI
@@ -43,8 +45,10 @@ final class PaneDividers {
 
     static let columnKey = "pad.columnWidth"
     static let filmstripKey = "pad.filmstripHeight"
-    /// The narrowest column is today's, the host's width (`WindowLayout.columnWidth`).
-    static let minColumn = WindowLayout.columnWidth
+    /// The narrowest column (the owner, 2026-11-16: the 393 of the drawings was "too wide"): 300 scene
+    /// points, where the strips' cards are 84 wide and three are still seen whole
+    /// (`StockPreviewRules.cardWidth`). The drawn 393 is the default a fresh drag starts from.
+    static let minColumn: CGFloat = 300
     /// The lowest filmstrip is today's (`BrowserFilmstrip.height`).
     static let minFilmstrip = BrowserFilmstrip.height
     /// The tallest filmstrip: tiles about three times today's, and never more than this share of the
@@ -56,11 +60,14 @@ final class PaneDividers {
     var filmstripHeight: CGFloat
     @ObservationIgnored private let defaults: UserDefaults
 
-    /// `defaults`: the app's own; a check hands in a suite of its own.
+    /// `defaults`: the app's own; a check hands in a suite of its own. Nothing stored yet, the column
+    /// is the drawings' 393 (`WindowLayout.columnWidth`) — the narrower floor is a drag's to reach,
+    /// not a fresh default (`max` then clamps a stored 300–393 to itself, and anything older that
+    /// named a narrower number is not of this floor's world).
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let column = defaults.double(forKey: Self.columnKey), strip = defaults.double(forKey: Self.filmstripKey)
-        columnWidth = max(column > 0 ? CGFloat(column) : Self.minColumn, Self.minColumn)
+        columnWidth = max(column > 0 ? CGFloat(column) : WindowLayout.columnWidth, Self.minColumn)
         filmstripHeight = max(strip > 0 ? CGFloat(strip) : Self.minFilmstrip, Self.minFilmstrip)
     }
 

@@ -61,6 +61,8 @@ enum Broken: String, CaseIterable {
     case shelvesOverlap = "shelves-overlap"
     /// The film strip in the catalogue's order, the shelves mixed under All.
     case catalogueOrder = "catalogue-order"
+    /// The card its drawn width at every viewport: three no longer fit when the column narrows.
+    case cardWidthFixed = "card-width-fixed"
 }
 
 func run(_ broken: Broken, catalog: StockCatalog, quiet: Bool) -> Checker {
@@ -358,6 +360,34 @@ func run(_ broken: Broken, catalog: StockCatalog, quiet: Bool) -> Checker {
     c.expect(taps > 10_000, "finger: \(taps) taps modelled")
     c.expect(slid.isEmpty, "finger: a second tap at the first's point lands on the card it chose -- \(slid.count) of \(taps) did not, e.g. \(slid.first ?? "")")
     c.expect(unreached.isEmpty, "finger: every chosen card ends wholly on screen -- \(unreached.count) did not, e.g. \(unreached.first ?? "")")
+
+    // The card a strip lays at a viewport width (the owner, 2026-11-16: "the emulations will not fit
+    // when I resize"): three cards are always seen whole. The card narrows as the column does, down
+    // to a floor, and never grows past its drawn width (100, the compact row's 96) — so the default
+    // column's row is the drawings' own, byte for byte, and the column may be dragged to 300.
+    func cardWidth(compact: Bool, in width: Double) -> Double {
+        if broken == .cardWidthFixed { return compact ? 96 : 100 }
+        return StockPreviewRules.cardWidth(compact: compact, in: width)
+    }
+    for (compact, drawn, floor) in [(false, 100.0, 80.0), (true, 96.0, 76.0)] {
+        c.expect(cardWidth(compact: compact, in: 393) == drawn,
+                 "width: the drawn card at the drawn column, 393 (compact \(compact))")
+        c.expect(cardWidth(compact: compact, in: 440) == drawn,
+                 "width: never past its drawn width (compact \(compact))")
+        let narrows = compact ? 330.0 : 340.0   // below where three drawn cards stop fitting (336 / 348)
+        c.expect(abs(cardWidth(compact: compact, in: narrows) - (narrows - 48) / 3) < 1e-9,
+                 "width: narrows below \(Int(compact ? 336 : 348)), where three drawn cards stop fitting (compact \(compact))")
+        c.expect(abs(cardWidth(compact: compact, in: 300) - 84.0) < 1e-9,
+                 "width: the column's new floor, 300, still holds three cards of 84 (compact \(compact))")
+        c.expect(cardWidth(compact: compact, in: 200) == floor,
+                 "width: never under its floor \(Int(floor)) (compact \(compact))")
+        var fits = true
+        for width in stride(from: 300.0, through: 440.0, by: 4) {
+            let w = cardWidth(compact: compact, in: width)
+            if 3 * w + 2 * 8 + 2 * 16 > width + 1e-9 { fits = false }
+        }
+        c.expect(fits, "width: three cards, their gaps and the row's margins fit every width from 300 up (compact \(compact))")
+    }
     // The strips' pills (2026-10-18): every film on exactly one shelf beside All, every paper too;
     // the cine prints on Standard; a shelf keeps the strip's order.
     func shelves(_ stock: Stock, _ list: [StockShelf]) -> [StockShelf] {

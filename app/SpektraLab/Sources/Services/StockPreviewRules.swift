@@ -218,6 +218,18 @@ extension StockPreviewRules {
         case .off, nil: return .centre
         }
     }
+
+    /// The card a strip lays at a viewport `width` (the owner, 2026-11-16: "the bar on the left is
+    /// too wide, and the emulations will not fit when I resize"): **three cards are always seen
+    /// whole** — the card narrows as the column does, down to a floor, and never grows past its
+    /// drawn width (100, the compact row's 96; `StockPreviewSize`), so the drawn column's row is
+    /// the drawings' own and the column may be dragged down to `PaneDividers.minColumn` (300, where
+    /// the card is 84). 32 is the row's two margins, 16 its two inner gaps
+    /// (`tools/stock_previews_selftest.swift` holds the rule, `Row`'s own numbers).
+    static func cardWidth(compact: Bool, in width: Double) -> Double {
+        let drawn = compact ? 96.0 : 100.0, floor = compact ? 76.0 : 80.0
+        return min(max((width - 32 - 16) / 3, floor), drawn)
+    }
 }
 
 /// The sizes, and why each.

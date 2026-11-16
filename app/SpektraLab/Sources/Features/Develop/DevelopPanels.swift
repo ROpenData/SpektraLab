@@ -471,8 +471,8 @@ struct FilmSizeSection: View {
             if !prefs.filmSizeCollapsed {
                 VStack(spacing: 4) {
                     StripScroller(ids: cards.map(\.id), selected: isCustom ? nil : params.filmFrame,
-                                  cardHeight: StripCard<EmptyView>.size(compact: true).height) { id in
-                        if let f = cards.first(where: { $0.id == id }) { card(f, held: held) }
+                                  cardHeight: StripCard<EmptyView>.size(compact: true).height) { id, width in
+                        if let f = cards.first(where: { $0.id == id }) { card(f, held: held, width: width) }
                     }
                     customRows
                 }
@@ -495,11 +495,12 @@ struct FilmSizeSection: View {
 
     // MARK: the strip
 
-    private func card(_ f: FilmFrame, held: Bool) -> some View {
+    private func card(_ f: FilmFrame, held: Bool, width: CGFloat) -> some View {
         let selected = !isCustom && params.filmFrame == f.id
         let dims = Self.dimensions(long: sentLong(f), photo: photo)
         return Button { take(f) } label: {
-            StripCard(compact: true, selected: selected, live: !held) {
+            StripCard(compact: true, selected: selected, live: !held,
+                      width: StockPreviewRules.cardWidth(compact: true, in: Double(width))) {
                 Rectangle().fill(Theme.card)
                 filmGlyph(f).frame(maxWidth: .infinity, maxHeight: .infinity).padding(.bottom, 24)
                 // The name over this picture's size, both at the card's foot: side by side they ran into each

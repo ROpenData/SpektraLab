@@ -447,15 +447,15 @@ struct StockPreviewRow: View {
                                  guard let card = byStock[stock] else { return }
                                  // A greyed card is never asked for: nothing is rendered on a paper that cannot print the film.
                                  if place != .off, live(card) { visible.insert(card.slot) } else { visible.remove(card.slot) }
-                             }) { stock in
-            if let card = byStock[stock] { cell(card, live: live(card)) }
+                             }) { stock, width in
+            if let card = byStock[stock] { cell(card, live: live(card), width: width) }
         }
     }
 
     /// One card's button. Its own function, not the `ForEach` closure: as one expression the
     /// chain below is past what Xcode 26's type checker finishes in time (GitHub's macos-26
     /// image, 2026-11-08); Xcode 27 managed it.
-    private func cell(_ card: StockPreviewCard, live: Bool) -> some View {
+    private func cell(_ card: StockPreviewCard, live: Bool, width: CGFloat) -> some View {
         Button {
             // The chosen card again changes nothing (`StockPreviewRules.pick`).
             let p = session.edit.params
@@ -466,7 +466,7 @@ struct StockPreviewRow: View {
             case nil: break
             }
         } label: {
-            cardView(card, selected: card.stock == selected, live: live)
+            cardView(card, selected: card.stock == selected, live: live, width: width)
         }
         .buttonStyle(.plain)
             .disabled(!live)
@@ -485,15 +485,16 @@ struct StockPreviewRow: View {
         return recommended ? name + L(", the film's own paper") : name
     }
 
-    private func cardView(_ card: StockPreviewCard, selected: Bool, live: Bool) -> some View {
+    private func cardView(_ card: StockPreviewCard, selected: Bool, live: Bool, width: CGFloat) -> some View {
         let state: StockPreviewState? = live ? strip.state(card) : nil
         let stock = StockCatalog.shared.stock(card.stock)
         let size = StripCard<EmptyView>.size(compact: compact)
-        return StripCard(compact: compact, selected: selected, live: live) {
+        let cardWidth = StockPreviewRules.cardWidth(compact: compact, in: Double(width))
+        return StripCard(compact: compact, selected: selected, live: live, width: cardWidth) {
             Rectangle().fill(stock?.color ?? Theme.card)
             if let image = state?.image {
                 Image(uiImage: image).resizable().scaledToFill()
-                    .frame(width: size.width, height: size.height).clipped()
+                    .frame(width: cardWidth, height: size.height).clipped()
             }
             StripCardCaption(title: stock?.shortName ?? (card.isDigitalIntermediate ? L("Digital Intermediate") : card.stock),
                              size: labelSize) {
@@ -522,7 +523,10 @@ struct StripScroller<ID: Hashable, Cell: View>: View {
     var rows = 1
     /// Each laid-out card's place in the row's viewport, as it changes: a stock row asks for the cards on screen.
     var onPlace: (ID, StripPlacement) -> Void = { _, _ in }
-    @ViewBuilder let cell: (ID) -> Cell
+    /// The row's viewport width, given with each card: the card narrows that three are always seen
+    /// (`StockPreviewRules.cardWidth`, the owner 2026-11-16) — the scroller lays whatever width its
+    /// cards bring, and this is the width that says which one that is.
+    @ViewBuilder let cell: (ID, CGFloat) -> Cell
     /// Each laid-out card's place in its row's viewport, by id: whether a
     /// change of the chosen card moves the row (`StockPreviewRules.reveal`).
     @State private var placement: [ID: StripPlacement] = [:]
@@ -572,7 +576,7 @@ struct StripScroller<ID: Hashable, Cell: View>: View {
     /// The cards, laid by the row or the grid that holds them.
     @ViewBuilder private func cells(width: CGFloat) -> some View {
         ForEach(ids, id: \.self) { id in
-            cell(id).id(id)
+            cell(id, width).id(id)
                 .onGeometryChange(for: StripPlacement.self) { geo in
                     let rect = geo.frame(in: .scrollView(axis: .horizontal))
                     return .of(minX: rect.minX, maxX: rect.maxX, width: width)
@@ -592,6 +596,10 @@ struct StripCard<Content: View>: View {
     var compact = false
     let selected: Bool
     let live: Bool
+    /// The card's width where the row narrows it that three are always seen (`StockPreviewRules.cardWidth`);
+    /// nil is the drawn width (`size`). The height is the drawn one either way — the row's height
+    /// budget is the column's own arithmetic and does not move for this.
+    var width: Double? = nil
     @ViewBuilder let content: () -> Content
 
     static func size(compact: Bool) -> CGSize { compact ? CGSize(width: 96, height: 64) : CGSize(width: 100, height: 84) }
@@ -599,7 +607,7 @@ struct StripCard<Content: View>: View {
     var body: some View {
         let size = Self.size(compact: compact)
         ZStack(alignment: .bottomLeading) { content() }
-            .frame(width: size.width, height: size.height)
+            .frame(width: width ?? size.width, height: size.height)
             .clipped().clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay { RoundedRectangle(cornerRadius: 7).stroke(selected ? Theme.selectionFrame : .clear, lineWidth: 2) }
             .saturation(live ? 1 : 0)
