@@ -29,6 +29,8 @@ enum MacLibraryCheck {
         MacCatalogCheck.startIfAsked(model: model, arguments: arguments)
         // `--clipboard-check` (Sources/Mac/LibraryUI, 2026-11-05): Copy and Paste Settings, from the same hook.
         MacClipboardCheck.startIfAsked(model: model, arguments: arguments)
+        // `--film-apply-check` (Sources/Mac/LibraryUI): Apply Film over a selection, from the same hook.
+        MacFilmApplyCheck.startIfAsked(model: model, arguments: arguments)
         // `--variant-check` (PRD-G, 2026-11-13): a variant is a frame of its own, from the same hook.
         MacVariantCheck.startIfAsked(model: model, arguments: arguments)
         MacVariantActsCheck.startIfAsked(model: model, arguments: arguments)

@@ -219,9 +219,13 @@ struct DevelopWorkspace: View {
             switch navigation.step {
             case .filmAndPaper:
                 if let stockStrip {
-                    StockPreviewPanel(session: session, strip: stockStrip, compact: compact, crop: nil,
-                                      decode: decodeSection, status: developStatusFoot,
-                                      foldable: true)
+                    VStack(spacing: 0) {
+                        StockPreviewPanel(session: session, strip: stockStrip, compact: compact, crop: nil,
+                                          decode: decodeSection, status: developStatusFoot,
+                                          foldable: true)
+                        // The window's one-act batch under the strips, while a selection holds.
+                        StockApplyFilmFoot(session: session)
+                    }
                 } else {
                     FilmPanel(session: session, pro: false, includesPaper: true, cardsOpenOn: opening.cardsOpenOn)
                 }

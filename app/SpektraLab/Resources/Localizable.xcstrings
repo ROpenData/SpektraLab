@@ -199,6 +199,50 @@
         }
       }
     },
+    "%@ applied onto %@ pictures. The rest of their settings are their own." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィルム「%@」を%@枚の写真に適用しました。他の設定は各自のままです。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已将胶片「%@」应用到 %@ 张照片，其余参数各自保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已將底片「%@」套用到 %@ 張照片，其餘參數各自保留。"
+          }
+        }
+      }
+    },
+    "%@ applied onto 1 picture. The rest of its settings are its own." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィルム「%@」を1枚の写真に適用しました。他の設定は各自のままです。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已将胶片「%@」应用到 1 张照片，其余参数各自保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已將底片「%@」套用到 1 張照片，其餘參數各自保留。"
+          }
+        }
+      }
+    },
     "%@ could not be developed now: they keep their earlier preview." : {
       "localizations" : {
         "ja" : {
@@ -925,6 +969,28 @@
         }
       }
     },
+    "%@ of the pictures are offline: they kept their film." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@枚の写真がオフラインのため、フィルムは変わっていません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其中 %@ 张照片离线，胶片保持不变。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其中 %@ 張照片離線，底片維持不變。"
+          }
+        }
+      }
+    },
     "%@ of the pictures are offline: they kept their settings." : {
       "localizations" : {
         "ja" : {
@@ -943,6 +1009,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "其中 %@ 張照片離線，設定維持不變。"
+          }
+        }
+      }
+    },
+    "%@ of the pictures could not be read: they kept their film." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@枚の写真を読み込めなかったため、フィルムは変わっていません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其中 %@ 张照片无法读取，胶片保持不变。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其中 %@ 張照片無法讀取，底片維持不變。"
           }
         }
       }
@@ -4291,6 +4379,28 @@
         }
       }
     },
+    "Apply Film" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィルムを適用"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用胶片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用底片"
+          }
+        }
+      }
+    },
     "Apply Film Emulation" : {
       "localizations" : {
         "ja" : {
@@ -4313,6 +4423,72 @@
         }
       }
     },
+    "Apply Film to %@…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@枚にフィルムを適用…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用胶片到 %@ 张…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用底片到 %@ 張…"
+          }
+        }
+      }
+    },
+    "Apply Film…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィルムを適用…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用胶片…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用底片…"
+          }
+        }
+      }
+    },
+    "Apply This Film to %@ Selected" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このフィルムを選択した%@枚に適用"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将此胶片应用到 %@ 张选中照片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將此底片套用到 %@ 張選中照片"
+          }
+        }
+      }
+    },
     "Apply {the guides}" : {
       "localizations" : {
         "ja" : {
@@ -4331,6 +4507,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "套用"
+          }
+        }
+      }
+    },
+    "Applying %@ onto %@ pictures…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」を%@枚の写真に適用しています…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在把「%@」应用到 %@ 张照片…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在把「%@」套用到 %@ 張照片…"
           }
         }
       }
@@ -10253,6 +10451,28 @@
         }
       }
     },
+    "Every chosen picture is already on %@." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択した写真はすべてすでに「%@」です。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选中的每张照片都已在胶片「%@」上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選中的每張照片都已在底片「%@」上。"
+          }
+        }
+      }
+    },
     "Every edit stays as it is. Undo can no longer go back past it, in any picture." : {
       "localizations" : {
         "ja" : {
@@ -11151,6 +11371,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "底片和相紙"
+          }
+        }
+      }
+    },
+    "Film cannot be applied" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィルムを適用できません"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法应用胶片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法套用底片"
           }
         }
       }
@@ -19863,6 +20105,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "只能輸入影像、影像檔案夾和目錄。"
+          }
+        }
+      }
+    },
+    "Onto %@ pictures. Each keeps its own exposure, paper and crop." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@枚の写真に適用します。各自の露出・印画紙・トリミングは保たれます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用到 %@ 张照片。每张保留各自的曝光、相纸与裁切。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用到 %@ 張照片。每張保留各自的曝光、相紙與裁切。"
+          }
+        }
+      }
+    },
+    "Onto 1 picture. Each keeps its own exposure, paper and crop." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1枚の写真に適用します。各自の露出・印画紙・トリミングは保たれます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用到 1 张照片。每张保留各自的曝光、相纸与裁切。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用到 1 張照片。每張保留各自的曝光、相紙與裁切。"
           }
         }
       }

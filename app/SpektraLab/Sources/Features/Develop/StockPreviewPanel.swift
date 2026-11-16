@@ -238,6 +238,49 @@ struct StockPreviewPanel: View {
     }
 }
 
+/// The window's one-act batch under the film strips (the Mac's Apply Film): the film this page's
+/// frame wears, onto the browser's chosen others — the Windows fork's 应用此胶片到选中. The
+/// emulsion alone moves (`MacLibraryActions.applyFilm`); the count is the chosen others, as the
+/// fork counts them. Laid by the page's two hosts beside their `StockPreviewPanel` (the pad page's
+/// column and the workspace's), whose own arithmetic (`height(rows:)`) the row is deliberately not
+/// part of: the column scrolls, and the row is only there while a selection holds.
+struct StockApplyFilmFoot: View {
+    let session: OpenFrameSession
+    @Environment(AppServices.self) private var model
+
+    /// The browser's chosen rows that are not this page's frame, in the grid's order. Nothing is
+    /// drawn with no browser (the pad's page without one, the snapshot harness) or nothing chosen
+    /// beyond the frame itself — one chosen opens on the page (`developWatch`), so a selection of
+    /// one is never a batch.
+    private var others: [MacImage] {
+        let store = MacLibraryUI.store(model)
+        let open = store.images.first { $0.develop?.frameID == session.frameID }
+        let selection = MacLibraryBrowser.shared.selection
+        guard selection.contains(where: { $0 != open?.id }) else { return [] }
+        return store.images.filter { selection.contains($0.id) && $0.id != open?.id }
+    }
+
+    var body: some View {
+        if !others.isEmpty {
+            Button {
+                MacLibraryActions.shared.applyFilm(session.edit.params.filmStock, onto: others,
+                                                   store: MacLibraryUI.store(model), model: model)
+            } label: {
+                Label(L("Apply This Film to \(others.count) Selected"), systemImage: "film")
+                    .font(Theme.Font.ui(13, .semibold)).lineLimit(1)
+                    .foregroundStyle(Theme.text).padding(.horizontal, 12).frame(height: 30)
+                    .frame(maxWidth: .infinity)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .frame(minHeight: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(PressStyle())
+            .rowEnabled(session.edit.appliesFilm)
+            .padding(.horizontal, 16).padding(.top, 6)
+            .accessibilityIdentifier("v5.develop.apply-film-selection")
+        }
+    }
+}
+
 /// The Enlarger page's papers (the owner, 2026-10-20: "the paper display fix
 /// that acts like the paper selection in develop, instead of the current,
 /// not-uniformed way"): Develop's paper row itself — each card the frame

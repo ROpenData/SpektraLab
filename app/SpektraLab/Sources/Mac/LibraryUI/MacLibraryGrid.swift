@@ -393,6 +393,7 @@ struct MacLibraryGrid: View {
                     .accessibilityIdentifier("library.menu.history")
             }
             pasteItem(chosen)
+            applyFilmItem(chosen)
             // Previews of an edit they no longer have, made again (a Stop, or the app quit mid-way). Which
             // of them are owed is asked when it is pressed (`developPreviews`): a menu is built with its cell,
             // on every render, and a stamp per chosen frame there was hundreds per render after ⌘A.
@@ -408,9 +409,11 @@ struct MacLibraryGrid: View {
                 Label(favourite ? L("Unfavourite") : L("Favourite"), systemImage: favourite ? "heart.slash" : "heart")
             }
         } else {
-            // Never opened: nothing to copy yet, but a paste makes its frame (`MacLibraryActions.pasteSettings`).
+            // Never opened: nothing to copy yet, but a paste makes its frame (`MacLibraryActions.pasteSettings`),
+            // and a film is applied to the frame it makes (`applyFilm`).
             Divider()
             pasteItem(chosen)
+            applyFilmItem(chosen)
         }
         // 新建变体 · 克隆变体, then 删除变体 where the image has more than one (PRD-G §3): on a cell among several chosen,
         // one new variant per chosen image. A pair's or a double's are greyed with the reason (§7.5), not left out.
@@ -442,6 +445,15 @@ struct MacLibraryGrid: View {
             Label(chosen.count > 1 ? L("Paste Settings to \(chosen.count)") : L("Paste Settings"), systemImage: "doc.on.clipboard")
         }
         .disabled(library.clipboard == nil)
+    }
+
+    /// 应用胶片 beside 粘贴设置, for the chosen pictures alike — the one-act batch: the picker sheet
+    /// (`MacApplyFilmSheet`) chooses the emulsion, and each picture keeps the rest of its own.
+    @ViewBuilder private func applyFilmItem(_ chosen: [MacImage]) -> some View {
+        Button { MacLibraryActions.shared.applyFilmAsk = .init(images: chosen) } label: {
+            Label(chosen.count > 1 ? L("Apply Film to \(chosen.count)…") : L("Apply Film…"), systemImage: "film")
+        }
+        .accessibilityIdentifier("library.menu.applyFilm")
     }
 }
 

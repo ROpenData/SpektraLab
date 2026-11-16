@@ -170,6 +170,18 @@ swiftc -O -parse-as-library -o "$out/stock_previews_selftest" \
   "$src/Model/Adjustments.swift" "$src/Model/CurveMath.swift" \
   "$src/Model/Geometry.swift" "$src/Model/FilmEdge.swift" "$src/Model/LensEdge.swift" "$src/Model/Stock.swift" "$src/Services/StockPreviewRules.swift" \
   "$here/tools/stock_previews_selftest.swift" 2> "$out/stock-previews-selftest-build.log" || { grep -E "error" "$out/stock-previews-selftest-build.log" | head -30; exit 1; }
+# Apply Film over a selection (tools/apply_film_selftest.swift): what one frame takes when a film is
+# applied to it and what it keeps — the frame's own paper where the new film prints on it, silver on
+# silver both ways, a slide scanned with its paper dormant, back on a negative printing again, the
+# film a frame already has changing nothing (not a scanned negative's scan), the frame's own exposure,
+# adjustments, geometry, film edge and digital intermediate kept, and the history step it records
+# (its label and origin) — over the bundle's own catalogue, and a made-up one for the slide no
+# bundle has.
+swiftc -O -parse-as-library -o "$out/apply_film_selftest" \
+  "$src/Model/Format.swift" "$src/Model/Localization.swift" "$src/Model/FeatureFlags.swift" "$src/Model/FilmParams.swift" "$src/Model/FrameEdit.swift" "$src/Model/LocalLayers.swift" \
+  "$src/Model/Adjustments.swift" "$src/Model/CurveMath.swift" \
+  "$src/Model/Geometry.swift" "$src/Model/FilmEdge.swift" "$src/Model/LensEdge.swift" "$src/Model/Stock.swift" "$src/Model/HistoryLabel.swift" \
+  "$here/tools/apply_film_selftest.swift" 2> "$out/apply-film-selftest-build.log" || { grep -E "error" "$out/apply-film-selftest-build.log" | head -30; exit 1; }
 swiftc -O -parse-as-library -o "$out/storage_selftest" \
   "$src/Services/WorkingCopies.swift" "$src/Services/StorageTidy.swift" "$src/Services/LibraryPreviews.swift" \
   "$src/Engine/RawProxyName.swift" "$here/tools/storage_selftest.swift" 2> "$out/storage-selftest-build.log" || { grep -E "error" "$out/storage-selftest-build.log" | head -30; exit 1; }
@@ -321,6 +333,7 @@ bash "$here/tools/found_mask_selftest.sh" "$@" | grep -E "^(FAIL|ok    mutant|ok
 "$out/film_edge_steps_selftest" "$@" || status=1
 "$out/lens_edge_selftest" "$here/Resources/StockCatalog.json" "$@" || status=1
 "$out/stock_previews_selftest" "$@" || status=1
+"$out/apply_film_selftest" "$@" || status=1
 "$out/storage_selftest" "$@" || status=1
 "$out/log_selftest" "$@" || status=1
 "$out/memory_selftest" "$@" || status=1
