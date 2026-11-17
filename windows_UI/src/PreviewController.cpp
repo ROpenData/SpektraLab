@@ -696,11 +696,13 @@ void PreviewController::openEffectsGallery() {
             for(const auto& [index,id]:order) {
                 if(cancel->load())break;
                 auto cellSettings=base;cellSettings.film_stock=id;
-                const auto variant=host.render_variant(cellSettings);
-                // Keep the full live-tier look so the big comparison view can
-                // show real detail; copy() detaches from the engine frame and
-                // releases the retained RGBA16 result immediately (~7 MB/film).
-                const auto image=imageFromFrame(variant).copy();
+                // Full-tier reprints: the engine's sub-full tiers render with
+                // crushed G/B on Windows Vulkan. Each cell is scaled to the
+                // comparison view's size host-side (~4 MB/film retained).
+                const auto variant=host.render_variant(cellSettings,"full");
+                const auto image=imageFromFrame(variant)
+                    .scaled(1600,1600,Qt::KeepAspectRatio,Qt::SmoothTransformation)
+                    .copy();
                 QMetaObject::invokeMethod(this,[this,gen,index,image]{
                     if(generation_!=gen)return;
                     auto cell=gallery_films_.value(index).toMap();
@@ -860,7 +862,7 @@ void PreviewController::thumbLoop() {
         QImage thumbnail;
         QString error;
         try {
-            const auto frame=host->open_raw(path(job.url),job.mode,job.settings,"live");
+            const auto frame=host->open_raw(path(job.url),job.mode,job.settings,"full",false);
             thumbnail=imageFromFrame(frame).scaled(180,120,Qt::KeepAspectRatio,Qt::SmoothTransformation);
         }catch(const std::exception& e){error=text(e.what());}
         QMetaObject::invokeMethod(this,[this,index=job.index,mode=job.mode,
