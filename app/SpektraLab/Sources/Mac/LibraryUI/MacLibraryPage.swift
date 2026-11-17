@@ -26,7 +26,6 @@ struct MacLibraryPage: View {
     /// The host's import banner, with its fade: `LibraryScreen.bottom`.
     let importBanner: AnyView
 
-    @State private var dragStart: CGFloat?
     /// The library's two questions and the pair just made live in `MacLibraryActions` (2026-10-26), so the
     /// develop page's browser asks them the same way.
     private var actions: MacLibraryActions { MacLibraryActions.shared }
@@ -43,7 +42,27 @@ struct MacLibraryPage: View {
     /// are the shell's, mounted once for every mode.
     @ViewBuilder private func window(_ store: any MacLibraryData, _ rows: [MacImage]) -> some View {
         HStack(spacing: 0) {
-            if browser.sidebarShown { columnPane(store, rows) }
+            if browser.sidebarShown {
+                columnPane(store, rows)
+                // The wall and its grip are the HStack's own, **after** the sidebar — the develop
+                // column's arrangement (`PadDevelopPage`'s rule and `.columnGrip`), not an overlay on
+                // the sidebar's trailing edge. There the grip's few points lay on the sidebar's own
+                // scrolling content, whose pan takes the touch before the gesture could answer it
+                // (the owner, 2026-11-17: the sidebar stopped being draggable); here the grip is the
+                // later sibling, and a touch at the wall is its.
+                Rectangle().fill(Theme.wall).frame(width: 1).ignoresSafeArea()
+                    .overlay(alignment: .leading) {
+                        DividerGrip(way: .sideways,
+                                    value: browser.sidebarWidth,
+                                    range: MacMetric.sidebarRange,
+                                    grows: 1, label: L("Column width"),
+                                    set: { browser.sidebarWidth = $0 },
+                                    ended: { PaneDividers.shared.save() })
+                            .frame(width: MacMetric.pt(10))
+                            .offset(x: -MacMetric.pt(5))
+                            .ignoresSafeArea()
+                    }
+            }
             // The grid has the window (`MacLibraryBrowser.fullGrid`): the viewer steps aside for it.
             if !browser.fullGrid { centrePane(rows) }
         }
@@ -91,35 +110,16 @@ struct MacLibraryPage: View {
             #endif
     }
 
-    /// The one line between the sidebar and the grid; dragged, the sidebar's width.
-    private var wall: some View {
-        Rectangle().fill(Theme.wall).frame(width: 1).ignoresSafeArea()
-            .overlay {
-                Color.clear.frame(width: MacMetric.pt(7)).contentShape(Rectangle())
-                    .gesture(DragGesture(minimumDistance: 1)
-                        .onChanged { v in
-                            let start = dragStart ?? browser.sidebarWidth
-                            dragStart = start
-                            let w = start + v.translation.width * MacMetric.scale
-                            browser.sidebarWidth = min(max(w, MacMetric.sidebarRange.lowerBound), MacMetric.sidebarRange.upperBound)
-                        }
-                        .onEnded { _ in
-                            dragStart = nil
-                            PaneDividers.shared.save()   // the one column, kept for both pages
-                        })
-                    .hoverEffect(.highlight)
-            }
-    }
-
     /// 裁剪 while browsing (`MacLibraryGo.crop`).
     private func crop(_ image: MacImage) { MacLibraryGo.crop(image, model: model) }
 
     /// The library's column: the catalog's tree (the mode row is the window's bar's since 2026-10-27).
+    /// Its width's wall and grip are the page HStack's own, after it (`window`) — not here, where they
+    /// would lie on the sidebar's scrolling edge and lose its pan the touch.
     @ViewBuilder private func columnPane(_ store: any MacLibraryData, _ rows: [MacImage]) -> some View {
         MacLibrarySidebar(store: store, browser: browser, rows: rows, openSettings: openSettings, open: open,
                           openCollection: open(collection:))
             .frame(width: MacMetric.pt(browser.sidebarWidth))
-            .overlay(alignment: .trailing) { wall }
     }
 
     /// The picture (the owner, 2026-10-26: the library's centre is the viewer).
