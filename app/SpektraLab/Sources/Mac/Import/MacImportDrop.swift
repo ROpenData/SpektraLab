@@ -67,7 +67,8 @@ enum MacImportDrop {
 
     /// The window's drop, and the import page's: the providers' files, then `receive`. True when the drop
     /// is taken (its files are read after, off the drop's own call, while the window says how many).
-    static func perform(_ providers: [NSItemProvider], router: AppRouter) -> Bool {
+    /// `model`: the app's, where the caller has it — a dropped folder then links directly (`receive`).
+    static func perform(_ providers: [NSItemProvider], router: AppRouter, model: AppServices? = nil) -> Bool {
         guard !providers.isEmpty, accepts(router) else { return false }
         let browser = MacLibraryBrowser.shared
         browser.dropReading = providers.count
@@ -82,7 +83,7 @@ enum MacImportDrop {
                 nothingToImport(providers)
                 return
             }
-            receive(picks, router: router)
+            receive(picks, router: router, model: model)
         }
         return true
     }
@@ -90,9 +91,29 @@ enum MacImportDrop {
     /// The one way in after the files are read (the driver's `import.drop` and the checks call it too):
     /// the picks are handed to the import page, which opens if it is not open. A drop the page has not
     /// taken yet is joined, never replaced; one refused now is let go (its copies removed).
-    static func receive(_ picks: Picks, router: AppRouter) {
+    ///
+    /// One folder, dropped from Finder (`model` given, no temporary copies), is **not** an import: it
+    /// links as a source and is selected (`CatalogSourcesStore.open`, the owner, 2026-11-17 — a folder
+    /// on the window is "打开这个目录", not "把这些文件导入"). Everything else — files, a mix, copies a
+    /// non-Finder app handed over, and every call that passes no `model` (the checks, the driver's
+    /// file drops) — goes to the import page as before.
+    static func receive(_ picks: Picks, router: AppRouter, model: AppServices? = nil) {
         guard !picks.urls.isEmpty else { return }
         guard accepts(router) else { discard(picks.urls); return }
+        if let model, !picks.copies, picks.urls.count == 1,
+           (try? picks.urls[0].resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
+            let folder = picks.urls[0]
+            Task {
+                let store = MacLibraryUI.store(model)
+                do {
+                    let source = try await store.open(folder)
+                    Log.note(.library, "mac import: a dropped folder linked", ["source": source.name, "kind": source.kind.rawValue])
+                } catch {
+                    MacLibraryActions.shared.refusal = error.localizedDescription
+                }
+            }
+            return
+        }
         let browser = MacLibraryBrowser.shared
         browser.droppedPicks = browser.droppedPicks.map { $0.adding(picks) } ?? picks
         // A new request if none (a page being taken down is not one); open, the page adds them (`onChange`);
@@ -288,9 +309,10 @@ final class MacImportDropWatch {
 
 extension View {
     /// The window's, or the import page's, drop target for 松手即导入 (`MacDropOffer`): `watch` says when
-    /// its note is up.
-    func macImportDropZone(router: AppRouter, watch: MacImportDropWatch) -> some View {
-        background { MacImportDropZone(router: router, watch: watch).allowsHitTesting(false) }
+    /// its note is up. `model`: the window's — a dropped folder then links directly (`MacImportDrop.receive`);
+    /// the import page's own zone passes none, for a drop there is an import by definition.
+    func macImportDropZone(router: AppRouter, watch: MacImportDropWatch, model: AppServices? = nil) -> some View {
+        background { MacImportDropZone(router: router, watch: watch, model: model).allowsHitTesting(false) }
     }
 }
 
@@ -305,8 +327,10 @@ extension View {
 struct MacImportDropZone: UIViewRepresentable {
     let router: AppRouter
     let watch: MacImportDropWatch
+    /// The window's app model, where a dropped folder may link directly (`Coordinator.performDrop`).
+    weak var model: AppServices? = nil
 
-    func makeCoordinator() -> Coordinator { Coordinator(router: router, watch: watch) }
+    func makeCoordinator() -> Coordinator { Coordinator(router: router, watch: watch, model: model) }
 
     func makeUIView(context: Context) -> Anchor {
         let anchor = Anchor()
@@ -332,14 +356,16 @@ struct MacImportDropZone: UIViewRepresentable {
     final class Coordinator: NSObject, UIDropInteractionDelegate, UIGestureRecognizerDelegate {
         var router: AppRouter
         let watch: MacImportDropWatch
+        weak var model: AppServices?
         private var interaction: UIDropInteraction?
         private var click: UITapGestureRecognizer?
         private weak var host: UIView?
         private var observers: [NSObjectProtocol] = []
 
-        init(router: AppRouter, watch: MacImportDropWatch) {
+        init(router: AppRouter, watch: MacImportDropWatch, model: AppServices? = nil) {
             self.router = router
             self.watch = watch
+            self.model = model
             super.init()
             // The app no longer in front: no drag of its is over it. (A backstop: the session's end is heard.)
             for name in [UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification] {
@@ -436,7 +462,7 @@ struct MacImportDropZone: UIViewRepresentable {
             Log.note(.library, "mac drop: dropped", ["verdict": verdict(session).rawValue, "items": session.items.count])
             watch.apply { $0.dropped() }
             guard verdict(session).takes else { return }
-            _ = MacImportDrop.perform(session.items.map(\.itemProvider), router: router)
+            _ = MacImportDrop.perform(session.items.map(\.itemProvider), router: router, model: model)
         }
     }
 }

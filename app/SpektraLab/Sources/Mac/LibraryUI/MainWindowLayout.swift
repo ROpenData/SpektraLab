@@ -198,7 +198,7 @@ struct MainWindowLayout: View {
         // (`MacImportDrop`, 2026-11-05). Refused (the cursor's ⊘) under another page's cover or sheet, and
         // for files that are not pictures, folders or catalogs; not answered at all for a drag from inside
         // the app or one with no file (`MacDropOffer`, 2026-11-09).
-        .macImportDropZone(router: router, watch: dropWatch)
+        .macImportDropZone(router: router, watch: dropWatch, model: model)
         .overlay {
             if dropWatch.shown || browser.dropReading != nil { MacImportDropNote(reading: browser.dropReading).ignoresSafeArea() }
         }

@@ -246,11 +246,15 @@ struct MacLibraryGrid: View {
                     Text(L(shown: problem)).font(MacMetric.font(12)).foregroundStyle(Theme.dim)
                         .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                 } else if store.sources.isEmpty {
-                    // No catalog yet (2026-10-24: the SpektraLab Library is the person's catalogs).
-                    Text(L("No catalog yet")).font(MacMetric.font(13, .semibold)).foregroundStyle(Theme.text)
-                    Text(L("Make a SpektraLab catalog, or open a catalog or a folder from the + menu below the sidebar."))
+                    // 打开文件夹 first (the owner, 2026-11-17): the pictures are referenced where
+                    // they are; a catalog is the second way in, for files that are to be copied.
+                    Text(L("Open a folder to begin")).font(MacMetric.font(13, .semibold)).foregroundStyle(Theme.text)
+                    Text(L("Your pictures stay where they are; SpektraLab reads them in place and keeps the folder in step."))
                         .font(MacMetric.font(12)).foregroundStyle(Theme.dim)
                         .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    Button(L("Open Folder…")) { Task { await AppMenuCommands.openPickedFolder(model) } }
+                        .font(MacMetric.font(12, .medium)).foregroundStyle(Theme.accent).buttonStyle(.plain)
+                        .accessibilityIdentifier("library.empty.open-folder")
                     Button(L("New Catalog…")) { Task { notMade = await MacCatalogActions.newCatalog(store) } }
                         .font(MacMetric.font(12, .medium)).foregroundStyle(Theme.accent).buttonStyle(.plain)
                     if let notMade {
