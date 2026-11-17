@@ -59,7 +59,7 @@ enum MacMetric {
     }
     /// The narrowest and widest the column may be dragged here, in this page's figures.
     static var sidebarRange: ClosedRange<CGFloat> {
-        columnFigure(PaneDividers.minColumn)...columnFigure(700)
+        columnFigure(PaneDividers.minColumn)...columnFigure(PaneDividers.maxColumn)
     }
     static let row: CGFloat = 24
     static let indent: CGFloat = 14
@@ -237,9 +237,11 @@ final class MacLibraryBrowser {
     /// The thumbnail cell's side, Mac points.
     var cell: Double = MacMetric.cellDefault
     /// The left column's width (`PaneDividers.columnWidth`, in this page's figures): one number for
-    /// 图库, 冲洗 and 编辑, dragged at either page's wall.
+    /// 图库, 冲洗 and 编辑, dragged at either page's wall. The getter clamps into this page's own drag
+    /// range (`PaneDividers.maxColumn` holds the shared ceiling), so the wall the frame draws is always
+    /// one its grip can move — a value a legacy build wrote past the range never freezes the column.
     var sidebarWidth: CGFloat {
-        get { MacMetric.columnFigure(PaneDividers.shared.columnWidth) }
+        get { MacMetric.columnFigure(PaneDividers.shared.columnWidth).clamped(to: MacMetric.sidebarRange) }
         set { PaneDividers.shared.columnWidth = MacMetric.padPoints(forColumn: newValue) }
     }
     var sidebarShown = true

@@ -17205,28 +17205,6 @@
         }
       }
     },
-    "Make a SpektraLab catalog, or open a catalog or a folder from the + menu below the sidebar." : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SpektraLabカタログを作成するか、サイドバー下の＋メニューからカタログまたはフォルダを開いてください。"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新建一个 SpektraLab 目录，或从边栏下方的 + 菜单打开目录或文件夹。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新增一個 SpektraLab 目錄，或從側邊欄下方的 + 選單打開目錄或檔案夾。"
-          }
-        }
-      }
-    },
     "Make a picture of the table to share" : {
       "localizations" : {
         "ja" : {
@@ -18653,28 +18631,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沒有打開的目錄或工作階段。"
-          }
-        }
-      }
-    },
-    "No catalog yet" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "カタログはまだありません"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "还没有目录"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "還沒有目錄"
           }
         }
       }
@@ -20369,6 +20325,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打開目錄或檔案夾…"
+          }
+        }
+      }
+    },
+    "Open Folder…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダを開く…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开文件夹…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打開資料夾…"
+          }
+        }
+      }
+    },
+    "Open a folder to begin" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダを開いて始める"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开一个文件夹开始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打開一個資料夾開始"
           }
         }
       }
@@ -32865,6 +32865,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的圖庫現在是一個 SpektraLab 目錄。照片在原處讀取，不會移動或拷貝任何東西。"
+          }
+        }
+      }
+    },
+    "Your pictures stay where they are; SpektraLab reads them in place and keeps the folder in step." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真は元の場所にあります。SpektraLabはその場で読み込み、フォルダと同期し続けます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片留在原处；SpektraLab 原地读取，并与文件夹保持同步。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片留在原處；SpektraLab 原地讀取，並與資料夾保持同步。"
           }
         }
       }

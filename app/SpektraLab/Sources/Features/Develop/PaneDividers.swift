@@ -45,6 +45,12 @@ final class PaneDividers {
     static let filmstripKey = "pad.filmstripHeight"
     /// The narrowest column is today's, the host's width (`WindowLayout.columnWidth`).
     static let minColumn = WindowLayout.columnWidth
+    /// The widest column: the sidebar drag's own ceiling (`MacLibraryUIState.sidebarRange`,
+    /// design/MAC-LIBRARY-UI.md §8) — the one number's legal ceiling in **both** pages' ranges, so a
+    /// width either page stored is one the other's grip owns. It also catches what a legacy build
+    /// wrote past every range: a stored 1077 was found 2026-11-17 — the sidebar drew it unclamped,
+    /// a wall at an edge its own grip could not reach back from. The column froze.
+    static let maxColumn: CGFloat = 700
     /// The lowest filmstrip is today's (`BrowserFilmstrip.height`).
     static let minFilmstrip = BrowserFilmstrip.height
     /// The tallest filmstrip: tiles about three times today's, and never more than this share of the
@@ -56,18 +62,21 @@ final class PaneDividers {
     var filmstripHeight: CGFloat
     @ObservationIgnored private let defaults: UserDefaults
 
-    /// `defaults`: the app's own; a check hands in a suite of its own.
+    /// `defaults`: the app's own; a check hands in a suite of its own. A stored width is clamped to
+    /// the legal range whole — `minColumn` up, and `maxColumn` down, so nothing a build before the
+    /// ceiling wrote (or anything else in the defaults) draws a column its grip cannot move.
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let column = defaults.double(forKey: Self.columnKey), strip = defaults.double(forKey: Self.filmstripKey)
-        columnWidth = max(column > 0 ? CGFloat(column) : Self.minColumn, Self.minColumn)
+        columnWidth = (column > 0 ? CGFloat(column) : Self.minColumn).clamped(to: Self.minColumn...Self.maxColumn)
         filmstripHeight = max(strip > 0 ? CGFloat(strip) : Self.minFilmstrip, Self.minFilmstrip)
     }
 
-    /// The widths a column may take in a page `width` wide: from today's up to as wide as the picture
-    /// side beside it — the picture is never the narrower of the two.
+    /// The widths a column may take in a page `width` wide: from today's up to `maxColumn`, or as wide
+    /// as the picture side beside it when the window is narrow — the picture is never the narrower of
+    /// the two.
     static func columnRange(in width: CGFloat) -> ClosedRange<CGFloat> {
-        minColumn...max(minColumn, ((width - 1) / 2).rounded(.down))
+        minColumn...max(minColumn, min(maxColumn, ((width - 1) / 2).rounded(.down)))
     }
 
     /// The column's width in a page `width` wide.

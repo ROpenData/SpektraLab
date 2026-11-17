@@ -165,7 +165,9 @@ Their pages are `Features/FilmEdge`, their model `Sources/FilmEdge` and `Model/F
   row picked, that layer's page (`MaskPage`) with no steps, in 冲洗 and 编辑 alike; or 摆放's controls
   (`ArrangeColumn`).
 - **The column and the picture side** are placed by `DevelopRegions`: the column stands at the window's left, as
-  Capture One's tools do, and is dragged between `PaneDividers.minColumn` and half the window; the width is kept and is
+  Capture One's tools do, and is dragged between `PaneDividers.minColumn` and `PaneDividers.maxColumn` (700 — the
+  sidebar drag's own ceiling, one number for both pages' walls; a narrow window narrows the ceiling before the picture
+  side is the narrower of the two); the width is kept and is
   the library's sidebar width too (`design/MAC-LIBRARY-UI.md` §6, §8).
 - **Another photograph or variant is the same page** (2.4.0 A2b): one session per frame, but the page is kept and handed
   the next frame's session (`DevelopPane.switchSession`), so only what depends on the frame updates. A view that holds

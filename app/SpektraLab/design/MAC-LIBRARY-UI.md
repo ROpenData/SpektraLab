@@ -151,7 +151,9 @@ second layer of tabs under the mode; the histogram stays at the top of the colum
 - **The mode row** (`MacModeSwitch`) leads the left column in all three modes — the develop column's
   header and the top of this page's sidebar. 冲洗 and 编辑 open the chosen picture on that surface.
 - **The left column is one width**: this page's sidebar starts at the develop column's 393 scene points
-  (`WindowLayout.columnWidth`), and either is dragged and kept (`PaneDividers.columnWidth`, one number).
+  (`WindowLayout.columnWidth`), and either is dragged and kept (`PaneDividers.columnWidth`, one number). The drag's
+  range is `PaneDividers.minColumn`…`maxColumn` (393…700; `sidebarRange`), and a stored width reads clamped into it —
+  a value a legacy build wrote past the ceiling (a 1077 was found) draws at the ceiling, where its grip can move it.
 - **The shared bar** (`MacSharedControls`) is §2's control group — the column's toggle, the viewer | grid
   split (⌥⌘V), the loupe, the sort and its direction — and it stands at the leading edge of the browser
   header here and of the develop page's picture bar there, so the two read as one bar across the window.
