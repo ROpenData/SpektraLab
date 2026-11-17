@@ -152,7 +152,7 @@ second layer of tabs under the mode; the histogram stays at the top of the colum
   header and the top of this page's sidebar. 冲洗 and 编辑 open the chosen picture on that surface.
 - **The left column is one width**: this page's sidebar starts at the develop column's 393 scene points
   (`WindowLayout.columnWidth`), and either is dragged and kept (`PaneDividers.columnWidth`, one number). The drag's
-  range is `PaneDividers.minColumn`…`maxColumn` (393…700; `sidebarRange`), and a stored width reads clamped into it —
+  range is `PaneDividers.minColumn`…`maxColumn` (300…700; `sidebarRange`; the drawn 393 is the default, the owner 2026-11-16), and a stored width reads clamped into it —
   a value a legacy build wrote past the ceiling (a 1077 was found) draws at the ceiling, where its grip can move it.
 - **The shared bar** (`MacSharedControls`) is §2's control group — the column's toggle, the viewer | grid
   split (⌥⌘V), the loupe, the sort and its direction — and it stands at the leading edge of the browser

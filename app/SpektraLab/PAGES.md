@@ -171,7 +171,7 @@ Their pages are `Features/FilmEdge`, their model `Sources/FilmEdge` and `Model/F
   row picked, that layer's page (`MaskPage`) with no steps, in 冲洗 and 编辑 alike; or 摆放's controls
   (`ArrangeColumn`).
 - **The column and the picture side** are placed by `DevelopRegions`: the column stands at the window's left, as
-  Capture One's tools do, and is dragged between `PaneDividers.minColumn` and `PaneDividers.maxColumn` (700 — the
+  Capture One's tools do, and is dragged between `PaneDividers.minColumn` (300; the drawings' 393 is the default, the owner 2026-11-16) and `PaneDividers.maxColumn` (700 — the
   sidebar drag's own ceiling, one number for both pages' walls; a narrow window narrows the ceiling before the picture
   side is the narrower of the two); the width is kept and is
   the library's sidebar width too (`design/MAC-LIBRARY-UI.md` §6, §8).

@@ -20,9 +20,9 @@ struct MacApplyFilmSheet: View {
     @State private var picked: String?
 
     private var catalog: StockCatalog { .shared }
-    /// The shelves the sheet lists, each a section: the film strip's own order, All left out (every
-    /// film is on one shelf beside it).
-    private static let shelves: [StockShelf] = [.negative, .positive, .cine, .mono]
+    /// The shelves the sheet lists, each a section: the film strips' own order, All left out (every
+    /// film is on one shelf beside it) — 收藏 first, as the strips have it since 2.4.1.
+    private static let shelves: [StockShelf] = [.favourites, .negative, .positive, .cine, .mono]
 
     private func close() { actions.applyFilmAsk = nil }
 
@@ -41,7 +41,7 @@ struct MacApplyFilmSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Self.shelves, id: \.id) { shelf in
-                        let films = catalog.films.filter(shelf.holds)
+                        let films = catalog.films.filter { shelf.holds($0, catalog) }
                         if !films.isEmpty {
                             Text(shelf.title).font(Theme.Font.ui(12.5, .semibold)).foregroundStyle(Theme.secondaryText)
                                 .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)

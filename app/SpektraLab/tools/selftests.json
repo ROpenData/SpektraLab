@@ -521,6 +521,7 @@
         "$src/Model/FeatureFlags.swift",
         "$src/Model/FilmParams.swift",
         "$src/Model/FrameEdit.swift",
+        "$src/Model/Watermark.swift",
         "$src/Model/LocalLayers.swift",
         "$src/Model/Adjustments.swift",
         "$src/Model/CurveMath.swift",

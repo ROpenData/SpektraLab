@@ -43,8 +43,10 @@ final class PaneDividers {
 
     static let columnKey = "pad.columnWidth"
     static let filmstripKey = "pad.filmstripHeight"
-    /// The narrowest column is today's, the host's width (`WindowLayout.columnWidth`).
-    static let minColumn = WindowLayout.columnWidth
+    /// The narrowest column (the owner, 2026-11-16: the 393 of the drawings was "too wide"): 300 scene
+    /// points. The drawn 393 is the default a fresh drag starts from; since 2.4.1 the strips are the
+    /// stock grid, which lays its cards by the width it is given.
+    static let minColumn: CGFloat = 300
     /// The widest column: the sidebar drag's own ceiling (`MacLibraryUIState.sidebarRange`,
     /// design/MAC-LIBRARY-UI.md §8) — the one number's legal ceiling in **both** pages' ranges, so a
     /// width either page stored is one the other's grip owns. It also catches what a legacy build
