@@ -1,0 +1,9 @@
+# The Spektra XD fork presents its own READMEs; the upstream (and the
+# ROpenData/SpektraLab development fork) present theirs. A sync that merges
+# their main would otherwise take their README wholesale (it did once,
+# 2026-11-17). These attributes keep this repository's versions on any
+# non-fast-forward merge; the fast-forward loophole is closed by syncing
+# with `git merge --no-ff` (see tools/sync-fork.ps1), and the
+# readme-guard workflow fails a push whose READMEs lost the fork's name.
+README.md merge=ours
+README.zh-CN.md merge=ours

@@ -1,0 +1,29 @@
+# Guards the fork's identity: the Spektra XD READMEs must carry the fork's
+# name. A sync that merges the development fork (ROpenData/SpektraLab) or
+# upstream can otherwise take their Mac-app README wholesale — it happened
+# once (2026-11-17, the v2.4.1 sync). This check fails the push so the
+# regression is caught on GitHub itself, not by a visitor.
+name: readme-guard
+
+on:
+  push:
+    paths:
+      - README.md
+      - README.zh-CN.md
+      - .github/workflows/readme-guard.yml
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The READMEs are the Spektra XD ones
+        run: |
+          grep -m1 "Spektra XD" README.md
+          grep -m1 "Windows-only\|Windows 专用" README.md
+          grep -m1 "Spektra XD" README.zh-CN.md
+          grep -m1 "Windows 专用" README.zh-CN.md
+          ! grep -m1 "darkroom for the Mac" README.md
+          ! grep -m1 "Mac 上的胶片暗房" README.zh-CN.md
+          echo "READMEs carry the Spektra XD identity"
