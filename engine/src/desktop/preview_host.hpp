@@ -120,11 +120,15 @@ public:
     // the result's actual cache flag determines whether reuse occurred.
     // A failure never mutates the previously returned Frame.
     FramePtr render(const RenderSettings& settings);
-    // Renders one effects-gallery cell at the engine's "live" tier (~1600 px
-    // long edge). The main full-resolution frame is not replaced; the session's
-    // applied parameters track the variant so the next render() delta stays
-    // correct. Throw/failure semantics match render().
-    FramePtr render_variant(const RenderSettings& settings);
+    // Renders one effects-gallery cell / interactive preview: a reprint of
+    // the open session at `tier` without replacing the main full-resolution
+    // frame; the session's applied parameters track the variant so the next
+    // render() delta stays correct. The tier defaults to "full" because the
+    // Windows Vulkan backend renders the engine's sub-full tiers ("live",
+    // "preview") with the green and blue channels crushed — an upstream bug
+    // the desktop port never exercised before this fork used them. Throw and
+    // failure semantics match render().
+    FramePtr render_variant(const RenderSettings& settings, const char* tier = "full");
     // Exports exactly the supplied frame, even after a newer one was opened.
     // Existing files are never overwritten. Returns only after the writer
     // has completed and closed the file; errors retain its cleanup details.

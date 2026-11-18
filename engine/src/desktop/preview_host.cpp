@@ -395,7 +395,10 @@ FramePtr PreviewHost::render(const RenderSettings& settings) {
     return next;
 }
 
-FramePtr PreviewHost::render_variant(const RenderSettings& settings) {
+FramePtr PreviewHost::render_variant(const RenderSettings& settings, const char* tier) {
+    require(tier && (std::string_view(tier) == "live" || std::string_view(tier) == "preview" ||
+                     std::string_view(tier) == "full"),
+            "Unknown render tier: " + std::string(tier ? tier : "(null)"));
     const auto started = Clock::now();
     require(bool(impl_->frame), "Open a RAW image before rendering");
     const bool scan_film = validate_settings(settings, impl_->catalog);
@@ -420,7 +423,7 @@ FramePtr PreviewHost::render_variant(const RenderSettings& settings) {
             variant->timings.params_ms = elapsed(t);
         }
         t = Clock::now();
-        const auto status = spk_reprint(impl_->session.get(), "live", &variant->result_);
+        const auto status = spk_reprint(impl_->session.get(), tier, &variant->result_);
         require(status == SPK_OK, "Render: " + std::string(spk_last_error(impl_->engine.get())));
         variant->timings.render_ms = elapsed(t);
         variant->timings.engine_render_ms = variant->result_.elapsed_ms;

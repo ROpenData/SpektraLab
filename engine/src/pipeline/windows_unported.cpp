@@ -27,6 +27,13 @@ std::string Pipeline::overscan_geometry_json() const { return "{\"valid\":false}
 // API-SPEC §24: no film edge here, so no format to name.
 std::string Pipeline::overscan_formats_json() { return "{\"formats\":[]}"; }
 
+// Main added `overscan_params_block` (v2.4.1's EDR-under-a-film-edge path,
+// pipeline.cpp) after the Windows port's root, and overscan.cpp is Apple
+// only -- same textual-merge hole as `overscan_geometry_json` above. Overscan
+// is refused here, so `node_edr`'s overscan branch errors out before this
+// could ever run; the stub only satisfies the linker.
+void Pipeline::overscan_params_block(std::vector<float>& P) const { P.assign(1, 0.0f); }
+
 // API-SPEC §21.5-§21.6: the lens pass (`lens.cpp`) dispatches Metal kernels
 // only, so it is refused here rather than run on kernels Vulkan lacks.
 bool Pipeline::film_lens_wanted() const {
