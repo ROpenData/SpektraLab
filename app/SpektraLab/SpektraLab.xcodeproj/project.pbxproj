@@ -206,6 +206,7 @@
 		2A92A805B7AD61731ED631E7 /* FrameEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = B292FAFA67C152F24AAFC992 /* FrameEdit.swift */; };
 		2AA929E18A10E0DA6D52691E /* LensProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LensProfile.swift; sourceTree = "<group>"; };
 		2B85AC6924937C576E38E33E /* MaskStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskStage.swift; sourceTree = "<group>"; };
+		2BBC489785E059C1906903D1 /* SmartMetering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 373A1260EFD5D93154A54C32 /* SmartMetering.swift */; };
 		2C7251BFBAD3404F3F0CAC08 /* FilmParams.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFE3E24FACD7AE5905EFEE1 /* FilmParams.swift */; };
 		2CA80992883C4894E66FF5A8 /* FilmEdgeStock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmEdgeStock.swift; sourceTree = "<group>"; };
 		2CD11C356A2ED4B240AC7231 /* ExportWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportWriter.swift; sourceTree = "<group>"; };
@@ -274,6 +275,7 @@
 			sourceTree = "<group>";
 		};
 		372BE27EBC5EDE2E7094F38F /* HistogramPlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistogramPlot.swift; sourceTree = "<group>"; };
+		373A1260EFD5D93154A54C32 /* SmartMetering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartMetering.swift; sourceTree = "<group>"; };
 		37C292D2FE3F407F8C4FB677 /* Supporters.swift in Sources */ = {isa = PBXBuildFile; fileRef = F154C6E8C9F0FCEB3736F12A /* Supporters.swift */; };
 		3809D960515CD2406FA72FF5 /* Gallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1004577F499CCD09FBEEBE81 /* Gallery.swift */; };
 		38D84B32A6872C0671B75E42 /* StockCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA61A4EC609AB88F353095D4 /* StockCards.swift */; };
@@ -312,6 +314,7 @@
 				3F266AA0E343D2695F25012E /* MaskFrame.swift */,
 				FB3C519BB3B2BA65958A79DB /* SceneBalance.swift */,
 				5583D0E258CCFA605A15094A /* SettingsClipboard.swift */,
+				373A1260EFD5D93154A54C32 /* SmartMetering.swift */,
 				63E2FF0BD16B7810F9A5D37C /* Sources.swift */,
 				E45EFD95B503E9EBF93999E9 /* Stock.swift */,
 				F154C6E8C9F0FCEB3736F12A /* Supporters.swift */,
@@ -498,7 +501,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 261118.1132;
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = ("$(PROJECT_DIR)/../../engine/include");
@@ -942,6 +945,7 @@
 				62FF7CEDF59E48F12460E0BC /* MaskFrame.swift */,
 				A55E6392F5E08274BB37EDE6 /* SceneBalance.swift */,
 				3BDA2656C7006CE6B9BCC3C0 /* SettingsClipboard.swift */,
+				2BBC489785E059C1906903D1 /* SmartMetering.swift */,
 				46A53981DEA987207EE41850 /* Sources.swift */,
 				7CBAFCB92B9FCC1AB0ADDE03 /* Stock.swift */,
 				37C292D2FE3F407F8C4FB677 /* Supporters.swift */,
@@ -1759,7 +1763,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 261118.1132;
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = ("$(PROJECT_DIR)/../../engine/include");

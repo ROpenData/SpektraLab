@@ -558,6 +558,24 @@ final class OpenFrameSession {
     /// and the edits that follow are reprints from its negative (55 ms on the
     /// reference device) or develop it again (0.24 s) instead of each opening the
     /// frame (0.5 s). Priced as what it is: a develop that decodes first.
+    /// **智能测光** (the owner, 2026-11-18: "每一次打开一个照片集，我都需要调整亮度"): a photograph
+    /// whose brightness is untouched opens **on the meter** — the engine's own (`auto_exposure`, the
+    /// photograph's remembered intent, `SmartMetering.shouldAuto`), so Film Exposure lands where the
+    /// film's calibration puts it and the print follows, instead of the person judging both by hand
+    /// on every open. One the person has touched is theirs, whatever the setting says; a pair's and a
+    /// double's light is their pieces' (`Hole.meter`), not this act's; and with 应用胶片模拟 off the
+    /// meter has no film to expose. Called before `open()`, so the first develop already meters.
+    /// One step of Undo, named as the act.
+    func smartMeterIfUntouched(smartMetering: Bool) {
+        guard smartMetering, !opened, !replayingHistory, pair == nil, double == nil, edit.appliesFilm else { return }
+        let p = edit.params
+        guard SmartMetering.shouldAuto(autoExposure: p.autoExposure, exposureEV: p.exposureCompensationEV,
+                                       printStops: p.printBrightnessStops) else { return }
+        recording(.develop, HistoryLabel("Smart Metering")) {
+            change { $0.params.autoExposure = true }
+        }
+    }
+
     func open() {
         guard !opened, let darkroom, darkroom.makesPictures, let frame else { return }
         opened = true

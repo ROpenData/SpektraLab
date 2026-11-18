@@ -99,6 +99,8 @@ struct DevelopPane: View {
             defer { TransitionMarks.mark("pane.appear<") }
             #endif
             if session == nil { take(frameID) }
+            // 智能测光 before the first develop: an untouched photograph opens on the meter.
+            session?.smartMeterIfUntouched(smartMetering: model.settings.smartMetering)
             // With an engine that makes pictures the canvas develops once as the
             // page opens, so the next edit is a reprint from its negative.
             session?.open()
@@ -185,7 +187,10 @@ struct DevelopPane: View {
         // Two frames: the display link's first callback after the commit may come before the frame is on the screen.
         AfterFrame.run(after: 2) {
             // Still this page's (not left since, which `leave` says by letting go of it): its develop asked.
-            if let next, next.isHeld { next.open() }
+            if let next, next.isHeld {
+                next.smartMeterIfUntouched(smartMetering: model.settings.smartMetering)
+                next.open()
+            }
             Self.release(last, lastStrip, model: model)
             #if DEBUG && SPK_ENGINE
             TransitionMarks.mark("pane.followed")

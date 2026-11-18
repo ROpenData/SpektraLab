@@ -70,6 +70,12 @@ final class AppSettings {
     /// **Check for updates at launch** (Settings › General, 2.2.1): once, a few seconds after a plain launch
     /// (`UpdateCheck`). On unless turned off.
     var checksForUpdates = true { didSet { save() } }
+    /// **智能测光** (Settings › Develop; the owner, 2026-11-18: "每一次打开一个照片集，我都需要调整
+    /// 亮度"): a photograph whose brightness is untouched — Film Exposure and the Enlarger's Brightness
+    /// both at rest, the meter off (`SmartMetering.shouldAuto`) — opens on the engine's own meter, with
+    /// the photograph's remembered intent. One the person has touched is theirs, whatever this says.
+    /// On unless turned off.
+    var smartMetering = true { didSet { save() } }
     /// **Enable HDR by Default** (Settings › Develop on the Mac; the owner, 2026-11-03): every frame
     /// whose own Enable HDR was never set follows it (`FrameEdit.hdrByDefault`). Off until turned on — here, or by
     /// switching Enable HDR on a photograph, which sets it too (2.4.0, `OpenFrameSession.switchHDR`: the last state the
@@ -163,6 +169,7 @@ final class AppSettings {
         cropRemapsFrame = d.bool(forKey: "settings.cropRemapsFrame")
         canvasGamut = d.string(forKey: "settings.canvasGamut").flatMap(CanvasGamut.init(rawValue:)) ?? canvasGamut
         if d.object(forKey: "settings.checksForUpdates") != nil { checksForUpdates = d.bool(forKey: "settings.checksForUpdates") }
+        if d.object(forKey: "settings.smartMetering") != nil { smartMetering = d.bool(forKey: "settings.smartMetering") }
         hdrByDefault = d.bool(forKey: "settings.hdrByDefault")
         // An initialiser's own assignment runs no `didSet`: what was kept is handed to the frames here, or a
         // relaunch would follow "off" until the box was touched again.
@@ -210,6 +217,7 @@ final class AppSettings {
         d.set(cropRemapsFrame, forKey: "settings.cropRemapsFrame")
         d.set(canvasGamut.rawValue, forKey: "settings.canvasGamut")
         d.set(checksForUpdates, forKey: "settings.checksForUpdates")
+        d.set(smartMetering, forKey: "settings.smartMetering")
         d.set(hdrByDefault, forKey: "settings.hdrByDefault")
         d.set(edrByDefault, forKey: "settings.edrByDefault")
         d.set(galleryView.rawValue, forKey: "settings.galleryView")

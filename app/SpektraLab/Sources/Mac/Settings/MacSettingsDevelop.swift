@@ -127,6 +127,14 @@ struct MacSettingsDevelop: View {
                                  allowed: { $0 == .system || LibRawDecode.isAvailable })
             }
             .macSettingsItem("RAW decoder")
+            // 智能测光 (the owner, 2026-11-18): an untouched photograph opens on the engine's own meter.
+            MacSettingsRow(label: L("Smart metering"),
+                           caption: L("A photograph whose brightness you have not touched opens on the film's meter, with the intent its Film Exposure panel remembers — balanced, centre, protect highlights, protect shadows. The engine solves the exposure inside the develop, and the print follows the film's calibration. One you have adjusted — its Film Exposure, its Enlarger Brightness, or its meter — is yours, and is never moved. Switching the intent on a photograph re-meters it at once."),
+                           last: false) {
+                MacSettingsCheckbox(label: L("Smart metering"), on: Binding(get: { settings.smartMetering },
+                                                                           set: { settings.smartMetering = $0 }))
+            }
+            .macSettingsItem("Smart metering")
             // v1.3.3's Settings › Film effects › *Crop re-maps the frame*, restored (2026-10-26): what a
             // crop means for the film's physical scale (`FrameEdit.wireFilmFormatMM`). Off by default.
             MacSettingsRow(label: L("Crop re-maps the frame"),

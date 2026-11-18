@@ -558,6 +558,23 @@
       "weight" : 2
     },
     {
+      "id" : "smart_metering_selftest",
+      "build" : [
+        "-O",
+        "-parse-as-library",
+        "$src/Model/Format.swift",
+        "$src/Model/Localization.swift",
+        "$src/Model/FilmParams.swift",
+        "$src/Model/CurveMath.swift",
+        "$src/Model/SmartMetering.swift",
+        "$here/tools/smart_metering_selftest.swift",
+        "-o",
+        "$out/smart_metering_selftest"
+      ],
+      "run" : "\"$out/smart_metering_selftest\" --self-test && \"$out/smart_metering_selftest\"",
+      "weight" : 2
+    },
+    {
       "id" : "stock_personal_selftest",
       "build" : [
         "-O",
