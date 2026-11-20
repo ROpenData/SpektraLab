@@ -18877,6 +18877,28 @@
         }
       }
     },
+    "Metering" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測光"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测光"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測光"
+          }
+        }
+      }
+    },
     "Middle line" : {
       "localizations" : {
         "ja" : {

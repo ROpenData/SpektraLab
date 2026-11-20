@@ -24,6 +24,9 @@ enum HistoryOrigin: String, Codable, Sendable, CaseIterable {
     case preset
     /// Apply Film over a selection (the one-act batch), one step per frame reached.
     case filmApply
+    /// 智能测光's one automatic act on open: the meter turned on for an untouched photograph, one
+    /// step, so the history tells a person's drag from the page's own opening act.
+    case metering
     /// A half-frame pair's or a double exposure's step that changed this photograph's decode.
     case composite
     /// The edit changed where no step was recorded: an older build, a restored backup, a sweep of Settings, an

@@ -355,6 +355,7 @@ final class MacHistoryPageModel {
         case .paste: L("Paste")
         case .preset: L("Preset")
         case .filmApply: L("Apply Film")
+        case .metering: L("Metering")
         case .composite: L("Combine")
         case .elsewhere: ""
         }

@@ -530,12 +530,26 @@ final class OpenFrameSession {
         if bringing != nil { return DevelopStatus(text: L("Reading the original from Photos"), busy: true, progress: nil) }
         if let notBrought { return DevelopStatus(text: L(shown: notBrought), busy: false, progress: nil) }
         let snapshot = scheduler.snapshot(frameID: frameID) { $0.kind.isCanvas }
-        let base = DevelopStatus.of(snapshot, frame: frame, thermal: scheduler.frontend.thermal,
+        var base = DevelopStatus.of(snapshot, frame: frame, thermal: scheduler.frontend.thermal,
                                     engineIsSimulated: !scheduler.engine.makesPictures,
                                     hasDevelop: developed != nil || frame.shownDevelop != nil,
                                     engineFailure: darkroom?.failure)
         if case .failed = snapshot?.state { return base }
+        // What the meter solved, said at rest beside the rest of the line (the owner, 2026-11-18:
+        // the meter's act was invisible — a photograph opened bright-right and nothing said by how
+        // much). A line that says something is under way says that alone.
+        if !base.busy, edit.params.autoExposure, let ev = lastMeteredEV {
+            base = DevelopStatus(text: base.text + Fmt.dot + L("meter ") + Fmt.signed(ev), busy: false, progress: nil)
+        }
         return Self.edited(base, tools: editedTools, on: surface)
+    }
+
+    /// What the engine's meter solved on this page's last develop (`RunMeasurement.autoExposureEV`,
+    /// a report the engine sends with every metered render): nil with the meter off or nothing
+    /// metered yet. The record read is the last canvas develop — this page's own kind; a develop
+    /// another frame owes is an import's (`importDevelop`), never a canvas one.
+    var lastMeteredEV: Double? {
+        scheduler.records.last { $0.kind == JobKind.canvasDevelop.rawValue && $0.measurement?.autoExposureEV != nil }?.measurement?.autoExposureEV
     }
 
     /// The line at rest, with Edit's tools in it (design/v5 §3.1): on Edit,
@@ -571,7 +585,7 @@ final class OpenFrameSession {
         let p = edit.params
         guard SmartMetering.shouldAuto(autoExposure: p.autoExposure, exposureEV: p.exposureCompensationEV,
                                        printStops: p.printBrightnessStops) else { return }
-        recording(.develop, HistoryLabel("Smart Metering")) {
+        recording(.metering, HistoryLabel("Smart Metering")) {
             change { $0.params.autoExposure = true }
         }
     }
@@ -1533,9 +1547,13 @@ final class OpenFrameSession {
     /// (`SceneBalanceAct`) — what a person undoes as one thing. The same refusal as `makeLayer`'s,
     /// for all of them at once. The last layer is picked.
     @discardableResult
-    func makeLayers(_ layers: [LocalLayer], stage: LayerStage, label: HistoryLabel) -> Bool {
-        guard LayerRules.takesMasks(layerPiece) else { return false }
-        guard (edit.layers ?? LocalLayers()).canAdd(stage, count: layers.count) else {
+    func makeLayers(_ layers: [LocalLayer], label: HistoryLabel) -> Bool {
+        guard LayerRules.takesMasks(layerPiece), !layers.isEmpty else { return false }
+        // Each layer's stage is its own (`LocalLayer.stage`): the refusal is asked per stage, for
+        // all the layers that stage is to hold — never a second voice beside the layers' own.
+        var counts: [LayerStage: Int] = [:]
+        for layer in layers { counts[layer.stage, default: 0] += 1 }
+        for (stage, count) in counts where !(edit.layers ?? LocalLayers()).canAdd(stage, count: count) {
             maskNote = MaskRules.refusal(adding: stage, to: edit.layers)
             return false
         }

@@ -116,8 +116,17 @@ struct FilmPanel: View {
                     // its middle 4.5 pt above the label's baseline.
                     meterMenu(AEMethod.of(p)) { method in session.change { method.apply(to: &$0.params) } }
                         .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
+                    // "meter +0.4" beside the pill, as a pair's frame has it (`Hole.meterText`): what
+                    // the meter solved on the last develop, once it has read (the owner, 2026-11-18:
+                    // the meter's act was invisible).
+                    if let read = meterText {
+                        DrawnText(read, PanelNotes.size, .medium, Theme.dim).padding(.leading, -2)
+                    }
                 } else if pair != nil {
                     DrawnText(L("both frames"), PanelNotes.size, .medium, Theme.dim).padding(.leading, -3)
+                } else if let read = meterText {
+                    // A single photograph's, without the pill (the trimmed layout): the reading alone.
+                    DrawnText(read, PanelNotes.size, .medium, Theme.dim).padding(.leading, -3)
                 }
                 Spacer(minLength: 8)
                 SliderField(shown: Fmt.signed(exposureLive ?? ev) + " EV",
@@ -166,6 +175,14 @@ struct FilmPanel: View {
         let id = session.frameID
         return Binding(get: { session.pair?[side]?.exposureEV ?? 0 },
                        set: { ev in model.changePair(id) { piece, look in piece.exposure(ev, of: side, look: &look.params) } })
+    }
+
+    /// "meter +0.4", as a pair's frame has it (`Hole.meterText`): what the meter solved on this
+    /// page's last develop, once it has read — nil with the meter off (the pill or the status line
+    /// says that) or before the first develop lands.
+    private var meterText: String? {
+        guard session.edit.params.autoExposure else { return nil }
+        return session.lastMeteredEV.map { L("meter ") + Fmt.signed($0) }
     }
 
     /// A film card was tapped. A slide is scanned and a negative printed on

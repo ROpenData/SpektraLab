@@ -76,7 +76,7 @@ enum SceneBalanceAct {
                 ground.feather = 0.04
                 layers.append(ground)
             }
-            guard session.makeLayers(layers, stage: .scene, label: HistoryLabel("Auto Balance")) else { return }
+            guard session.makeLayers(layers, label: HistoryLabel("Auto Balance")) else { return }
             session.maskNote = L("Balanced: the sky \(Fmt.signed(answer.skyEV)) stops, the ground \(Fmt.signed(answer.groundEV)) stops, as layers to tune.")
         }
     }
